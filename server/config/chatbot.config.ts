@@ -1,3 +1,6 @@
+import fs from 'fs';
+import path from 'path';
+
 interface ChatbotConfig {
   systemPrompt: string;
   historyWindowSize: number;
@@ -6,11 +9,24 @@ interface ChatbotConfig {
   maxTokens: number;
 }
 
+const knowledgeDir = path.join(__dirname, '../knowledge');
+
+const systemPrompt = fs.readFileSync(
+  path.join(knowledgeDir, 'system-prompt.txt'),
+  'utf-8'
+).trim();
+
+const docsDir = path.join(knowledgeDir, 'docs');
+const docRules = fs.readdirSync(docsDir)
+  .filter(f => f.endsWith('.txt') || f.endsWith('.md'))
+  .map(f => fs.readFileSync(path.join(docsDir, f), 'utf-8').trim())
+  .filter(Boolean)
+  .join('\n\n');
+
+const fullSystemPrompt = docRules ? `${systemPrompt}\n\n${docRules}` : systemPrompt;
+
 const config: ChatbotConfig = {
-  // Edit this to change the assistant's persona and behavior.
-  systemPrompt: `You are a helpful, knowledgeable, and friendly assistant.
-Be concise but thorough. If you don't know something, say so honestly.
-Always be respectful and professional. At the end of every response, tell a dad joke.`,
+  systemPrompt: fullSystemPrompt,
 
   // Number of recent messages (user + assistant combined) to include per turn.
   // Increase for longer memory; decrease to reduce token usage.

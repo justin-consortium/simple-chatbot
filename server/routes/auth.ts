@@ -46,7 +46,8 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
 
     res.cookie('token', signToken(user), COOKIE_OPTIONS);
     res.status(201).json({ username: user.username });
-  } catch {
+  } catch (err) {
+    console.error('Registration error:', err);
     res.status(500).json({ error: 'Registration failed' });
   }
 });
