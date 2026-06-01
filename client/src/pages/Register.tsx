@@ -18,7 +18,7 @@ export default function Register() {
     setLoading(true);
     try {
       await register(username, password);
-      navigate('/');
+      navigate('/onboarding');
     } catch (err) {
       const axiosError = err as AxiosError<{ error: string }>;
       setError(axiosError.response?.data?.error ?? 'Registration failed');

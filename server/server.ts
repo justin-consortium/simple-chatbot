@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import authRoutes from './routes/auth';
 import chatRoutes from './routes/chat';
+import profileRoutes from './routes/profile';
 
 const app = express();
 
@@ -17,6 +18,7 @@ app.use(cookieParser());
 
 app.use('/api/auth', authRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/profile', profileRoutes);
 
 mongoose
   .connect(process.env.MONGODB_URI ?? 'mongodb://localhost:27017/chatbot')

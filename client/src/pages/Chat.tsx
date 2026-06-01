@@ -128,12 +128,18 @@ export default function Chat() {
     navigate('/login');
   };
 
+  const handleResetOnboarding = async (): Promise<void> => {
+    await api.delete('/profile');
+    navigate('/onboarding');
+  };
+
   return (
     <div className="chat-layout">
       <header className="chat-header">
         <span className="chat-title">ChatBot</span>
         <div className="chat-header-right">
           <span className="chat-username">{user?.username}</span>
+          <button onClick={() => void handleResetOnboarding()} className="btn-logout">Redo onboarding</button>
           <button onClick={() => void handleLogout()} className="btn-logout">Sign out</button>
         </div>
       </header>
