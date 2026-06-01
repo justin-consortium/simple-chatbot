@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import type { KeyboardEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { AGENT_IMAGE, AGENT_NAME } from '../config/agent';
 import api from '../api/client';
 
 interface ChatMessage {
@@ -19,8 +20,15 @@ export default function Chat() {
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(true);
+  const [displayName, setDisplayName] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    api.get<{ displayName: string }>('/profile')
+      .then(res => setDisplayName(res.data.displayName))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     api.get<ChatMessage[]>('/chat/history')
@@ -33,7 +41,6 @@ export default function Chat() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Auto-resize textarea as content grows
   useEffect(() => {
     const ta = textareaRef.current;
     if (ta) {
@@ -73,7 +80,7 @@ export default function Chat() {
 
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split('\n');
-        buffer = lines.pop() ?? ''; // hold back potentially incomplete last line
+        buffer = lines.pop() ?? '';
 
         for (const line of lines) {
           if (!line.startsWith('data: ')) continue;
@@ -128,21 +135,38 @@ export default function Chat() {
     navigate('/login');
   };
 
+  const handleResetOnboarding = async (): Promise<void> => {
+    await api.delete('/profile');
+    navigate('/onboarding');
+  };
+
   return (
     <div className="chat-layout">
       <header className="chat-header">
-        <span className="chat-title">ChatBot</span>
-        <div className="chat-header-right">
-          <span className="chat-username">{user?.username}</span>
-          <button onClick={() => void handleLogout()} className="btn-logout">Sign out</button>
+        <div className="chat-header-inner">
+          <div className="chat-header-left">
+            {import.meta.env.DEV && (
+              <button onClick={() => void handleResetOnboarding()} className="btn-dev">
+                Redo Onboarding
+              </button>
+            )}
+          </div>
+          <div className="chat-header-center">
+            <img src={AGENT_IMAGE} alt={AGENT_NAME} className="chat-agent-avatar" />
+            <span className="chat-title">{AGENT_NAME}</span>
+          </div>
+          <div className="chat-header-right">
+            <span className="chat-username">{displayName || user?.username}</span>
+            <button onClick={() => void handleLogout()} className="btn-logout">Sign out</button>
+          </div>
         </div>
       </header>
 
       <main className="message-list">
         {historyLoading ? (
-          <div className="chat-status">Loading conversation...</div>
+          <div className="chat-empty">Loading conversation…</div>
         ) : messages.length === 0 ? (
-          <div className="chat-status">Send a message to start the conversation.</div>
+          <div className="chat-empty">Send a message to start the conversation.</div>
         ) : (
           messages.map(msg => (
             <div key={msg._id} className={`message ${msg.role}`}>
@@ -163,7 +187,7 @@ export default function Chat() {
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Type a message… (Enter to send, Shift+Enter for new line)"
+            placeholder="What's on your mind?"
             rows={1}
             disabled={isStreaming}
           />

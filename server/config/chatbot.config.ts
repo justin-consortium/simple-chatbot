@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 
 interface ChatbotConfig {
+  name: string;
   systemPrompt: string;
   historyWindowSize: number;
   model: string;
@@ -26,6 +27,7 @@ const docRules = fs.readdirSync(docsDir)
 const fullSystemPrompt = docRules ? `${systemPrompt}\n\n${docRules}` : systemPrompt;
 
 const config: ChatbotConfig = {
+  name: 'Companion',
   systemPrompt: fullSystemPrompt,
 
   // Number of recent messages (user + assistant combined) to include per turn.
