@@ -3,10 +3,12 @@ import type { FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import type { AxiosError } from 'axios';
 import { useAuth } from '../context/AuthContext';
+import { useAgentConfig } from '../hooks/useAgentConfig';
 
 export default function Register() {
   const { register } = useAuth();
   const navigate = useNavigate();
+  const { agentName } = useAgentConfig();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -18,7 +20,7 @@ export default function Register() {
     setLoading(true);
     try {
       await register(username, password);
-      navigate('/');
+      navigate('/onboarding');
     } catch (err) {
       const axiosError = err as AxiosError<{ error: string }>;
       setError(axiosError.response?.data?.error ?? 'Registration failed');
@@ -30,13 +32,17 @@ export default function Register() {
   return (
     <div className="auth-container">
       <div className="auth-card">
-        <h1>ChatBot</h1>
+        <div className="auth-agent">
+          <div className="agent-avatar">{agentName ? agentName[0] : '?'}</div>
+          <span className="agent-name">{agentName || ' '}</span>
+        </div>
         <h2>Create Account</h2>
         {error && <div className="error-message">{error}</div>}
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label>Username</label>
+            <label htmlFor="register-username">Username</label>
             <input
+              id="register-username"
               type="text"
               value={username}
               onChange={e => setUsername(e.target.value)}
@@ -48,10 +54,11 @@ export default function Register() {
             />
           </div>
           <div className="form-group">
-            <label>
+            <label htmlFor="register-password">
               Password <span className="hint">(min. 8 characters)</span>
             </label>
             <input
+              id="register-password"
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
@@ -61,7 +68,7 @@ export default function Register() {
             />
           </div>
           <button type="submit" className="btn-primary" disabled={loading}>
-            {loading ? 'Creating account...' : 'Create Account'}
+            {loading ? 'Creating account…' : 'Create Account'}
           </button>
         </form>
         <p className="auth-switch">
