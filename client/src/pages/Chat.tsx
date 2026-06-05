@@ -13,6 +13,25 @@ interface ChatMessage {
   error?: boolean;
 }
 
+type SessionState = 'active' | 'sleeping' | 'menu';
+type SessionMode = 'vent' | 'reflect' | 'solve' | 'free' | 'continue';
+
+const MENU_HEADINGS = [
+  'How would you like to spend this time?',
+  'What feels right for this conversation?',
+  'What would you like to do with this time?',
+  'What would be good for you right now?',
+  'What kind of conversation are you in the mood for?',
+  'What would you like this time to be?',
+];
+
+const MODE_OPTIONS: { mode: SessionMode; label: string; requiresSummary?: boolean }[] = [
+  { mode: 'continue', label: 'Continue our last conversation', requiresSummary: true },
+  { mode: 'vent',     label: 'Get some feelings out' },
+  { mode: 'reflect',  label: 'Make sense of something' },
+  { mode: 'solve',    label: 'Figure out what to do' },
+];
+
 export default function Chat() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -21,6 +40,10 @@ export default function Chat() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [displayName, setDisplayName] = useState('');
+  const [sessionState, setSessionState] = useState<SessionState>('active');
+  const [sessionMode, setSessionMode] = useState<SessionMode>('free');
+  const hasPriorSummary = false; // TODO (Layer 1): derive from session summary
+  const [menuHeading, setMenuHeading] = useState(MENU_HEADINGS[0]);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -49,6 +72,26 @@ export default function Chat() {
     }
   }, [input]);
 
+  const endSession = () => {
+    // TODO (Layer 1): call backend to summarize this session
+    setSessionState('sleeping');
+  };
+
+  const handleWake = () => {
+    setMenuHeading(MENU_HEADINGS[Math.floor(Math.random() * MENU_HEADINGS.length)]);
+    setSessionState('menu');
+  };
+
+  const handleModeSelect = (mode: SessionMode) => {
+    setSessionMode(mode);
+    setSessionState('active');
+  };
+
+  const handleSkipMenu = () => {
+    setSessionMode('free');
+    setSessionState('active');
+  };
+
   const handleSend = async (): Promise<void> => {
     const content = input.trim();
     if (!content || isStreaming) return;
@@ -64,7 +107,7 @@ export default function Chat() {
       const response = await fetch('/api/chat/message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content, mode: sessionMode }),
         credentials: 'include',
       });
 
@@ -142,12 +185,58 @@ export default function Chat() {
 
   return (
     <div className="chat-layout">
+
+      {sessionState === 'sleeping' && (
+        <div
+          className="sleep-overlay"
+          onClick={handleWake}
+          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') handleWake(); }}
+          role="button"
+          tabIndex={0}
+          aria-label="Tap to continue"
+        >
+          <div className="sleep-content">
+            <img src={AGENT_IMAGE} alt={AGENT_NAME} className="sleep-avatar" />
+            <p className="sleep-label">I'm here whenever you're ready</p>
+          <p className="sleep-hint">Tap anywhere to continue</p>
+          </div>
+        </div>
+      )}
+
+      {sessionState === 'menu' && (
+        <div className="mode-menu-overlay" onClick={handleSkipMenu}>
+          <div className="mode-menu-card" onClick={e => e.stopPropagation()}>
+            <img src={AGENT_IMAGE} alt={AGENT_NAME} className="mode-menu-avatar" />
+            <h2 className="mode-menu-heading">{menuHeading}</h2>
+            <div className="mode-menu-options">
+              {MODE_OPTIONS
+                .filter(opt => !opt.requiresSummary || hasPriorSummary)
+                .map(opt => (
+                  <button
+                    key={opt.mode}
+                    className="ob-option-chip"
+                    onClick={() => handleModeSelect(opt.mode)}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+            </div>
+            <button className="mode-skip-btn" onClick={handleSkipMenu}>
+              I don't know — just chat
+            </button>
+          </div>
+        </div>
+      )}
+
       <header className="chat-header">
         <div className="chat-header-inner">
           <div className="chat-header-left">
+            <button onClick={endSession} className="btn-dev">
+              End session
+            </button>
             {import.meta.env.DEV && (
               <button onClick={() => void handleResetOnboarding()} className="btn-dev">
-                Redo Onboarding
+                Redo onboarding
               </button>
             )}
           </div>
