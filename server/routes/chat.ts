@@ -5,6 +5,7 @@ import Message from '../models/Message';
 import auth from '../middleware/auth';
 import { streamTokens } from '../services/aiService';
 import config from '../config/chatbot.config';
+import { buildSystemPrompt } from '../services/promptService';
 
 const router = Router();
 
@@ -20,7 +21,7 @@ router.get('/history', auth, async (req: Request, res: Response): Promise<void> 
 });
 
 router.post('/message', auth, async (req: Request, res: Response): Promise<void> => {
-  const { content } = req.body as { content?: string };
+  const { content, mode } = req.body as { content?: string; mode?: string };
   if (!content?.trim()) {
     res.status(400).json({ error: 'Message content required' });
     return;
@@ -37,7 +38,7 @@ router.post('/message', auth, async (req: Request, res: Response): Promise<void>
       .lean();
 
     const contextMessages: ChatCompletionMessageParam[] = [
-      { role: 'system', content: config.systemPrompt },
+      { role: 'system', content: buildSystemPrompt(mode ?? 'free', '', false) },
       ...history.reverse().map(m => ({
         role: m.role as 'user' | 'assistant',
         content: m.content,
