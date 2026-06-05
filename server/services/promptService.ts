@@ -10,11 +10,11 @@ function load(filename: string): string {
 // Load once at startup
 const background = load('background.txt');
 const modeModules: Record<string, string> = {
-  vent: load('mode_vent.txt'),
-  reflect: load('mode_reflect.txt'),
-  solve: load('mode_solve.txt'),
-  free: load('mode_free.txt'),
-  // mode_continue is out of scope for Layer 0 — routes to free
+  vent:     load('mode_vent.txt'),
+  reflect:  load('mode_reflect.txt'),
+  solve:    load('mode_solve.txt'),
+  free:     load('mode_free.txt'),
+  continue: load('mode_continue.txt'),
 };
 
 const DEBUG_FOOTER = (mode: string) =>
@@ -24,9 +24,16 @@ export function buildSystemPrompt(
   mode: string,
   profileContext: string = '',
   debug: boolean = false,
+  priorSummary: string = '',
 ): string {
   const resolvedMode = modeModules[mode] ? mode : 'free';
-  const modeText = modeModules[resolvedMode];
+  let modeText = modeModules[resolvedMode];
+
+  if (resolvedMode === 'continue') {
+    modeText = priorSummary
+      ? modeText.replace('{{PRIOR_SUMMARY}}', priorSummary)
+      : modeModules['free']; // no summary yet — fall back to free
+  }
 
   let prompt = background
     .replace('{{THIS_CONVERSATION}}', modeText)

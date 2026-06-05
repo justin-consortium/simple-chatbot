@@ -10,8 +10,19 @@ const openai = new OpenAI({
   baseURL: process.env.OPENAI_BASE_URL,
 });
 
-// To swap providers, replace this generator's implementation while keeping
-// the same interface: accepts ChatCompletionMessageParam[] and yields tokens.
+// One-shot (non-streaming) call — used for summarization.
+// Always requests JSON output; the caller is responsible for parsing.
+export async function callOnce(messages: ChatCompletionMessageParam[]): Promise<string> {
+  const response = await openai.chat.completions.create({
+    model: config.model,
+    messages,
+    temperature: 0,
+    max_tokens: 1024,
+    response_format: { type: 'json_object' },
+  });
+  return response.choices[0]?.message?.content ?? '';
+}
+
 export async function* streamTokens(
   messages: ChatCompletionMessageParam[]
 ): AsyncGenerator<string> {
@@ -24,7 +35,11 @@ export async function* streamTokens(
   });
 
   for await (const chunk of stream) {
-    const token = chunk.choices[0]?.delta?.content;
+    const choice = chunk.choices[0];
+    if (choice?.finish_reason === 'content_filter') {
+      throw new Error('content_filter');
+    }
+    const token = choice?.delta?.content;
     if (token) yield token;
   }
 }

@@ -1,0 +1,160 @@
+import fs from 'fs';
+import path from 'path';
+import { Router } from 'express';
+import type { Request, Response } from 'express';
+import type { ChatCompletionMessageParam } from 'openai/resources';
+import Message from '../models/Message';
+import Summary from '../models/Summary';
+import Profile from '../models/Profile';
+import auth from '../middleware/auth';
+import { streamTokens, callOnce } from '../services/aiService';
+import { buildSystemPrompt } from '../services/promptService';
+import { renderProfileContext } from '../services/profileService';
+import config from '../config/chatbot.config';
+
+const router = Router();
+
+const promptsDir = path.join(__dirname, '../prompts');
+const summarizePrompt = fs.readFileSync(path.join(promptsDir, 'summarize-prompt.txt'), 'utf-8').trim();
+const openerFirst     = fs.readFileSync(path.join(promptsDir, 'opener_first.txt'), 'utf-8').trim()
+  .replace('{{AGENT_NAME}}', config.name);
+const openerReturning = fs.readFileSync(path.join(promptsDir, 'opener_returning.txt'), 'utf-8').trim();
+
+// GET /api/session/latest-summary
+// Returns the most recent summary for the user, or null if none exists.
+router.get('/latest-summary', auth, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const latest = await Summary.findOne({ userId: req.user!.id })
+      .sort({ createdAt: -1 })
+      .lean();
+    res.json({ summary: latest ?? null });
+  } catch {
+    res.status(500).json({ error: 'Failed to fetch summary' });
+  }
+});
+
+// POST /api/session/end
+// Summarizes the session's messages and stores the result. Fire-and-forget friendly.
+router.post('/end', auth, async (req: Request, res: Response): Promise<void> => {
+  const { sessionId } = req.body as { sessionId?: string };
+  if (!sessionId) {
+    res.status(400).json({ error: 'sessionId required' });
+    return;
+  }
+
+  try {
+    const messages = await Message.find({ userId: req.user!.id, sessionId })
+      .sort({ createdAt: 1 })
+      .lean();
+
+    if (messages.length < 2) {
+      res.json({ success: true, skipped: true });
+      return;
+    }
+
+    const transcript = messages
+      .map(m => `${m.role === 'user' ? 'Caregiver' : 'Companion'}: ${m.content}`)
+      .join('\n\n');
+
+    const summarizeMessages: ChatCompletionMessageParam[] = [
+      { role: 'system', content: summarizePrompt },
+      { role: 'user',   content: transcript },
+    ];
+
+    let parsed: Record<string, unknown>;
+    try {
+      const raw = await callOnce(summarizeMessages);
+      parsed = JSON.parse(raw) as Record<string, unknown>;
+    } catch (err) {
+      console.error('[session/end] summary parse failed:', err);
+      res.json({ success: true, skipped: true });
+      return;
+    }
+
+    const sessionRecap = typeof parsed.sessionRecap === 'string' ? parsed.sessionRecap : '';
+    if (!sessionRecap) {
+      res.json({ success: true, skipped: true });
+      return;
+    }
+
+    await Summary.create({
+      userId: req.user!.id,
+      sessionId,
+      summary: {
+        caregiverState:       typeof parsed.caregiverState === 'string' ? parsed.caregiverState : '',
+        whatCameUp:           Array.isArray(parsed.whatCameUp) ? parsed.whatCameUp : [],
+        selfCareCoping:       Array.isArray(parsed.selfCareCoping) ? parsed.selfCareCoping : [],
+        careSituationUpdates: typeof parsed.careSituationUpdates === 'string' ? parsed.careSituationUpdates : '',
+        interactionNotes:     typeof parsed.interactionNotes === 'string' ? parsed.interactionNotes : '',
+        sessionRecap,
+      },
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[session/end] error:', err);
+    res.status(500).json({ error: 'Failed to end session' });
+  }
+});
+
+// POST /api/session/start
+// Generates and streams an opening message from the agent.
+router.post('/start', auth, async (req: Request, res: Response): Promise<void> => {
+  const { mode, sessionId } = req.body as { mode?: string; sessionId?: string };
+  if (!sessionId) {
+    res.status(400).json({ error: 'sessionId required' });
+    return;
+  }
+
+  try {
+    const profile = await Profile.findOne({ userId: req.user!.id }).lean();
+    const profileContext = profile ? renderProfileContext(profile) : '';
+
+    const latestSummary = await Summary.findOne({ userId: req.user!.id })
+      .sort({ createdAt: -1 })
+      .lean();
+    const isFirstSession = !latestSummary;
+
+    const priorSummary = mode === 'continue' && latestSummary
+      ? latestSummary.summary.sessionRecap
+      : '';
+
+    const systemPrompt = buildSystemPrompt(mode ?? 'free', profileContext, false, priorSummary);
+    const openerInstruction = isFirstSession ? openerFirst : openerReturning;
+
+    const messages: ChatCompletionMessageParam[] = [
+      { role: 'system', content: `${systemPrompt}\n\n${openerInstruction}` },
+    ];
+
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+
+    let fullContent = '';
+    for await (const token of streamTokens(messages)) {
+      fullContent += token;
+      res.write(`data: ${JSON.stringify({ token })}\n\n`);
+    }
+
+    await Message.create({
+      userId: req.user!.id,
+      role: 'assistant',
+      content: fullContent,
+      sessionId,
+    });
+
+    res.write('data: [DONE]\n\n');
+    res.end();
+  } catch (err) {
+    console.error('[session/start] error:', err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Failed to start session' });
+    } else {
+      res.write(`data: ${JSON.stringify({ error: 'Stream interrupted' })}\n\n`);
+      res.end();
+    }
+  }
+});
+
+export default router;

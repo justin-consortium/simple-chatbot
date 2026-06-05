@@ -6,6 +6,7 @@ import cors from 'cors';
 import authRoutes from './routes/auth';
 import chatRoutes from './routes/chat';
 import profileRoutes from './routes/profile';
+import sessionRoutes from './routes/session';
 import chatbotConfig from './config/chatbot.config';
 
 const app = express();
@@ -20,6 +21,7 @@ app.use(cookieParser());
 app.use('/api/auth', authRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/session', sessionRoutes);
 
 app.get('/api/agent', (_req, res) => {
   res.json({ name: chatbotConfig.name });
