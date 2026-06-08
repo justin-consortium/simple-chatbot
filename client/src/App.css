@@ -699,6 +699,42 @@ body {
   cursor: not-allowed;
 }
 
+.ob-trait-chip-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.ob-trait-locked {
+  background: #eef2ff;
+  border-color: #4f46e5;
+  cursor: default;
+  pointer-events: none;
+}
+
+.ob-trait-locked .ob-trait-label {
+  color: #4f46e5;
+}
+
+.ob-locked-badge {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  background: #c7d2fe;
+  color: #3730a3;
+  border-radius: 999px;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.ob-lock-icon {
+  font-size: 0.8rem;
+  margin-right: 0.2rem;
+}
+
 .ob-trait-label {
   font-size: 0.9375rem;
   font-weight: 600;

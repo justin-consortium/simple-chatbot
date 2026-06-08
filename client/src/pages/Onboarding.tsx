@@ -6,20 +6,17 @@ import { AGENT_NAME, AGENT_IMAGE } from '../config/agent';
 const TOTAL_STEPS = 5;
 
 const SUPPORT_STYLE_OPTIONS = [
-  { code: 'listen',     label: 'Hear me out and sit with me in it' },
-  { code: 'make_sense', label: 'Help me make sense of what I\'m feeling' },
-  { code: 'reframe',    label: 'Help me see it from another angle' },
-  { code: 'figure_out', label: 'Help me figure out what to do' },
-  { code: 'inform',     label: 'Give me information or teach me something' },
+  { code: 'listen',     label: 'Being heard',              description: 'I just need to get it out.' },
+  { code: 'make_sense', label: 'Making sense of it',       description: 'Help me understand what\'s going on.' },
+  { code: 'reframe',    label: 'Seeing it differently',    description: 'Offer another way to look at it.' },
+  { code: 'figure_out', label: 'Figuring out a next step', description: 'Help me decide what to do.' },
+  { code: 'inform',     label: 'Getting clear information', description: 'Give me facts or options.' },
 ];
 
-const PERSONA_TRAIT_OPTIONS = [
-  { code: 'warm',        label: 'Warm',        description: 'Speak with care and let you know I\'m here with you.' },
-  { code: 'genuine',     label: 'Genuine',     description: 'No clichés or canned empathic phrases.' },
-  { code: 'calm',        label: 'Calm',        description: 'Keep a steady, even tone, especially when things feel heavy.' },
-  { code: 'direct',      label: 'Direct',      description: 'Get to the point in a plain-spoken way.' },
-  { code: 'encouraging', label: 'Encouraging', description: 'Notice what you\'re doing well and look for hopeful signs.' },
-  { code: 'humorous',    label: 'Humorous',    description: 'A little lightness when the moment fits.' },
+const TONE_MODIFIER_OPTIONS = [
+  { code: 'direct',       label: 'Direct',       description: 'Get to the point in a plain-spoken way.' },
+  { code: 'professional', label: 'Professional', description: 'Composed and measured, a little more formal.' },
+  { code: 'humorous',     label: 'Humorous',     description: 'A little lightness when the moment fits.' },
 ];
 
 const RECHARGE_OPTIONS = [
@@ -57,8 +54,8 @@ const CARE_TYPE_OPTIONS = [
 
 const STEP_QUESTIONS: Record<number, string> = {
   1: 'What would you like me to call you?',
-  2: 'How should I support you? When something\'s weighing on you, what usually helps most?',
-  3: 'How would you like me to come across?',
+  2: 'I\'m always warm and caring. What would you like to add?',
+  3: 'When something\'s weighing on you, what usually helps most?',
   4: 'Outside of caregiving, what do you enjoy, or what helps you recharge when you get a moment?',
   5: 'A few questions about your caregiving situation so I can be a more relevant companion for you.',
 };
@@ -66,7 +63,7 @@ const STEP_QUESTIONS: Record<number, string> = {
 interface Answers {
   displayName: string;
   supportStyle: string[];
-  personaTraits: string[];
+  toneModifier: string;
   rechargeCategories: string[];
   rechargeOther: string;
   relationship: string;
@@ -82,7 +79,7 @@ export default function Onboarding() {
   const [answers, setAnswers] = useState<Answers>({
     displayName: '',
     supportStyle: [],
-    personaTraits: [],
+    toneModifier: '',
     rechargeCategories: [],
     rechargeOther: '',
     relationship: '',
@@ -97,7 +94,7 @@ export default function Onboarding() {
   }, [navigate]);
 
   const toggleMulti = (
-    field: keyof Pick<Answers, 'supportStyle' | 'personaTraits' | 'rechargeCategories' | 'careTypes'>,
+    field: keyof Pick<Answers, 'supportStyle' | 'rechargeCategories' | 'careTypes'>,
     code: string,
     max?: number
   ) => {
@@ -111,9 +108,13 @@ export default function Onboarding() {
     });
   };
 
+  const toggleToneModifier = (code: string) => {
+    setAnswers(prev => ({ ...prev, toneModifier: prev.toneModifier === code ? '' : code }));
+  };
+
   const canAdvance = (): boolean => {
     if (step === 1) return answers.displayName.trim().length > 0;
-    if (step === 2) return answers.supportStyle.length > 0;
+    if (step === 3) return answers.supportStyle.length > 0;
     return true;
   };
 
@@ -125,7 +126,7 @@ export default function Onboarding() {
       await api.post('/profile', {
         displayName: answers.displayName.trim(),
         supportStyle: answers.supportStyle,
-        personaTraits: answers.personaTraits,
+        toneModifier: answers.toneModifier,
         recharge: {
           categories: answers.rechargeCategories,
           other: answers.rechargeOther.trim(),
@@ -195,32 +196,25 @@ export default function Onboarding() {
           )}
 
           {step === 2 && (
-            <div className="ob-option-list">
-              {SUPPORT_STYLE_OPTIONS.map(opt => (
-                <button
-                  key={opt.code}
-                  className={`ob-option-chip${answers.supportStyle.includes(opt.code) ? ' selected' : ''}`}
-                  onClick={() => toggleMulti('supportStyle', opt.code)}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {step === 3 && (
             <>
-              <p className="ob-hint">Pick up to 3.</p>
+              <p className="ob-hint">Pick one more, or none.</p>
               <div className="ob-option-list">
-                {PERSONA_TRAIT_OPTIONS.map(opt => {
-                  const selected = answers.personaTraits.includes(opt.code);
-                  const disabled = !selected && answers.personaTraits.length >= 3;
+                <div className="ob-trait-chip ob-trait-locked">
+                  <div className="ob-trait-chip-header">
+                    <span className="ob-trait-label">
+                      <span className="ob-lock-icon">🔒</span> Warm
+                    </span>
+                    <span className="ob-locked-badge">always on</span>
+                  </div>
+                  <span className="ob-trait-desc">Speak with care and stay here with you.</span>
+                </div>
+                {TONE_MODIFIER_OPTIONS.map(opt => {
+                  const selected = answers.toneModifier === opt.code;
                   return (
                     <button
                       key={opt.code}
-                      className={`ob-trait-chip${selected ? ' selected' : ''}${disabled ? ' disabled' : ''}`}
-                      onClick={() => toggleMulti('personaTraits', opt.code, 3)}
-                      disabled={disabled}
+                      className={`ob-trait-chip${selected ? ' selected' : ''}`}
+                      onClick={() => toggleToneModifier(opt.code)}
                     >
                       <span className="ob-trait-label">{opt.label}</span>
                       <span className="ob-trait-desc">{opt.description}</span>
@@ -229,6 +223,21 @@ export default function Onboarding() {
                 })}
               </div>
             </>
+          )}
+
+          {step === 3 && (
+            <div className="ob-option-list">
+              {SUPPORT_STYLE_OPTIONS.map(opt => (
+                <button
+                  key={opt.code}
+                  className={`ob-trait-chip${answers.supportStyle.includes(opt.code) ? ' selected' : ''}`}
+                  onClick={() => toggleMulti('supportStyle', opt.code)}
+                >
+                  <span className="ob-trait-label">{opt.label}</span>
+                  <span className="ob-trait-desc">{opt.description}</span>
+                </button>
+              ))}
+            </div>
           )}
 
           {step === 4 && (

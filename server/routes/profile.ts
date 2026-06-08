@@ -21,7 +21,7 @@ router.get('/', auth, async (req: Request, res: Response): Promise<void> => {
 interface ProfileBody {
   displayName?: string;
   supportStyle?: string[];
-  personaTraits?: string[];
+  toneModifier?: string;
   recharge?: { categories?: string[]; other?: string };
   caregiverProfile?: {
     relationship?: string;
@@ -37,10 +37,6 @@ router.post('/', auth, async (req: Request, res: Response): Promise<void> => {
     res.status(400).json({ error: 'displayName is required' });
     return;
   }
-  if (body.personaTraits && body.personaTraits.length > 3) {
-    res.status(400).json({ error: 'personaTraits may not exceed 3 selections' });
-    return;
-  }
 
   try {
     const profile = await Profile.findOneAndUpdate(
@@ -49,7 +45,7 @@ router.post('/', auth, async (req: Request, res: Response): Promise<void> => {
         $set: {
           displayName: body.displayName.trim(),
           supportStyle: body.supportStyle ?? [],
-          personaTraits: body.personaTraits ?? [],
+          toneModifier: body.toneModifier ?? '',
           recharge: {
             categories: body.recharge?.categories ?? [],
             other: body.recharge?.other?.trim() ?? '',
