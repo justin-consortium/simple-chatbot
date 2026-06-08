@@ -464,7 +464,8 @@ body {
   background: var(--color-surface);
   line-height: var(--leading-body);
   resize: none;
-  overflow-y: hidden;
+  max-height: 55vh;
+  overflow-y: auto;
   outline: none;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
