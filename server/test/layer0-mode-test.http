@@ -1,0 +1,78 @@
+### Layer 0 — mode plumbing smoke test (authenticated)
+### Setup: install the "REST Client" extension (humao.rest-client), open this file in VS Code.
+### Run order: #1 ONCE ever (register), then #2 (login) — REST Client saves the JWT cookie and
+### attaches it to every request below. Then run #3-#8. Re-run #2 if you start getting 401s again.
+### Server: http://localhost:5555 — debug is hardcoded ON, so every reply ends with a mode marker.
+
+### 1. REGISTER a test user — only needed ONCE. If it says the user already exists, that's fine; skip to #2.
+POST http://localhost:5555/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "password": "password123"
+}
+
+### 2. LOGIN — run this after each VS Code restart. Saves the auth cookie for the requests below.
+# @name login
+POST http://localhost:5555/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "password": "password123"
+}
+
+### 3. VENT — expect: listening + validation, no rush to fix.  Marker: vent
+POST http://localhost:5555/api/chat/message
+Content-Type: application/json
+
+{
+  "content": "I'm completely wiped out. I haven't had a single moment to myself in days and I feel like I'm disappearing into all of this.",
+  "mode": "vent"
+}
+
+### 4. REFLECT — expect: gentle questions, helping you make sense of it, not solving.  Marker: reflect
+POST http://localhost:5555/api/chat/message
+Content-Type: application/json
+
+{
+  "content": "I snapped at my husband over something tiny this morning and I can't stop turning it over. I don't know why it hit me that hard.",
+  "mode": "reflect"
+}
+
+### 5. SOLVE — expect: structured, draws out YOUR ideas first, lands on a next step.  Marker: solve
+POST http://localhost:5555/api/chat/message
+Content-Type: application/json
+
+{
+  "content": "I want to carve out a few hours for myself each week but I genuinely don't know how to make it happen.",
+  "mode": "solve"
+}
+
+### 6. FREE — expect: warm, open check-in, no agenda.  Marker: free
+POST http://localhost:5555/api/chat/message
+Content-Type: application/json
+
+{
+  "content": "Hi — nothing big on my mind, just felt like checking in.",
+  "mode": "free"
+}
+
+### 7. NO MODE — tests the default fallback; should behave as free.  Marker should be: free
+POST http://localhost:5555/api/chat/message
+Content-Type: application/json
+
+{
+  "content": "Hey there."
+}
+
+### 8. CONTINUE (edge check) — should fall back to free for now.
+### Watch that the reply does NOT contain a literal {{PRIOR_SUMMARY}}.
+POST http://localhost:5555/api/chat/message
+Content-Type: application/json
+
+{
+  "content": "Hi, I wanted to pick up where we left off.",
+  "mode": "continue"
+}

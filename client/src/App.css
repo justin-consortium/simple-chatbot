@@ -328,6 +328,30 @@ body {
   gap: 10px;
 }
 
+.session-divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  max-width: 720px;
+  width: 100%;
+  margin: var(--space-5) auto var(--space-2);
+}
+
+.session-divider::before,
+.session-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--color-border);
+}
+
+.session-divider span {
+  font-size: var(--text-xs);
+  color: var(--color-text-soft);
+  white-space: nowrap;
+  opacity: 0.7;
+}
+
 .chat-empty {
   max-width: 720px;
   width: 100%;
@@ -377,6 +401,17 @@ body {
   color: var(--color-bubble-agent-text);
   border-bottom-left-radius: 4px;
 }
+
+/* Markdown content inside assistant bubbles */
+
+.message.assistant .bubble p { margin: 0 0 0.3em; }
+.message.assistant .bubble p:last-child { margin-bottom: 0; }
+.message.assistant .bubble ul,
+.message.assistant .bubble ol { margin: 0.25em 0 0 1.25em; padding: 0; }
+.message.assistant .bubble li { margin: 0; padding: 0; display: list-item; }
+.message.assistant .bubble li p { display: contents; }
+.message.assistant .bubble strong { font-weight: 600; }
+.message.assistant .bubble em { font-style: italic; }
 
 .bubble-error {
   background: #FEF2F2 !important;
@@ -429,7 +464,8 @@ body {
   background: var(--color-surface);
   line-height: var(--leading-body);
   resize: none;
-  overflow-y: hidden;
+  max-height: 55vh;
+  overflow-y: auto;
   outline: none;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
@@ -743,6 +779,141 @@ body {
   font-size: 0.8125rem;
   color: #9ca3af;
   margin-top: 1rem;
+}
+
+/* ── Sleep state overlay ── */
+
+.sleep-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: var(--color-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  animation: fadeInSlow 0.7s ease;
+}
+
+.sleep-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-5);
+  user-select: none;
+}
+
+.sleep-avatar {
+  width: 88px;
+  height: 88px;
+  border-radius: var(--radius-pill);
+  object-fit: cover;
+  border: 3px solid var(--color-primary-soft);
+  animation: softPulse 3.5s ease-in-out infinite;
+}
+
+.sleep-label {
+  font-size: var(--text-sm);
+  color: var(--color-text-soft);
+  letter-spacing: 0.02em;
+}
+
+.sleep-hint {
+  font-size: var(--text-xs);
+  color: var(--color-text-soft);
+  letter-spacing: 0.03em;
+  margin-top: calc(-1 * var(--space-3));
+}
+
+/* ── Mode menu overlay ── */
+
+.mode-menu-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(247, 248, 250, 0.88);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  animation: fadeIn 0.35s ease;
+}
+
+.mode-menu-card {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 4px 24px rgba(20, 20, 40, 0.08);
+  padding: var(--space-8) var(--space-6);
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-5);
+}
+
+.mode-menu-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-pill);
+  object-fit: cover;
+  border: 2px solid var(--color-primary-soft);
+}
+
+.mode-menu-heading {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--color-text);
+  text-align: center;
+  line-height: var(--leading-tight);
+}
+
+.mode-menu-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.mode-skip-btn {
+  background: transparent;
+  border: none;
+  font-size: var(--text-sm);
+  color: var(--color-text-soft);
+  cursor: pointer;
+  padding: var(--space-1) var(--space-3);
+  font-family: var(--font-body);
+  transition: color 0.15s;
+  margin-top: calc(-1 * var(--space-2));
+}
+
+.mode-skip-btn:hover {
+  color: var(--color-text);
+}
+
+/* ── Shared animations ── */
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes fadeInSlow {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes softPulse {
+  0%, 100% { opacity: 1;    transform: scale(1);    }
+  50%       { opacity: 0.72; transform: scale(0.965); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sleep-overlay,
+  .mode-menu-overlay { animation: none; }
+  .sleep-avatar      { animation: none; }
 }
 
 /* ── Responsive ── */
