@@ -3,7 +3,6 @@ import type { FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import type { AxiosError } from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { AGENT_IMAGE, AGENT_NAME } from '../config/agent';
 
 export default function Login() {
   const { login } = useAuth();
@@ -30,9 +29,8 @@ export default function Login() {
 
   return (
     <div className="login-page">
-      <img src={AGENT_IMAGE} alt={AGENT_NAME} className="login-agent-image" />
-
-      <h1 className="login-hero-title">Caring for<br />the Caregiver</h1>
+      <h1 className="login-hero-title">CareQOL Chat Study</h1>
+      <p className="login-hero-subtitle">Caring for the Caregiver</p>
 
       <div className="login-form-section">
         {error && <div className="error-message">{error}</div>}
