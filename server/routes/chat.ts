@@ -5,7 +5,8 @@ import Message from '../models/Message';
 import auth from '../middleware/auth';
 import { streamTokens } from '../services/aiService';
 import { buildSystemPrompt } from '../services/promptService';
-import { renderProfileContext } from '../services/profileService';
+import { renderProfileContext, renderToneInstruction } from '../services/profileService';
+import { getContinueRecap } from '../services/summaryService';
 import Profile from '../models/Profile';
 
 const router = Router();
@@ -22,7 +23,12 @@ router.get('/history', auth, async (req: Request, res: Response): Promise<void> 
 });
 
 router.post('/message', auth, async (req: Request, res: Response): Promise<void> => {
-  const { content, mode, sessionId } = req.body as { content?: string; mode?: string; sessionId?: string };
+  const { content, mode, sessionId, continuedSummaryId } = req.body as {
+    content?: string;
+    mode?: string;
+    sessionId?: string;
+    continuedSummaryId?: string;
+  };
   if (!content?.trim()) {
     res.status(400).json({ error: 'Message content required' });
     return;
@@ -31,13 +37,18 @@ router.post('/message', auth, async (req: Request, res: Response): Promise<void>
   try {
     const profile = await Profile.findOne({ userId: req.user!.id }).lean();
     const profileContext = profile ? renderProfileContext(profile) : '';
+    const toneInstruction = profile ? renderToneInstruction(profile.tone) : '';
+    // For continue mode, re-inject the pinned prior-session recap on every turn
+    // (not just at session start), so the thread persists through the session.
+    const priorSummary = await getContinueRecap(req.user!.id, mode, continuedSummaryId);
 
     // Persist the user's message first
     await Message.create({ userId: req.user!.id, role: 'user', content: content.trim(), sessionId });
 
     // Fetch the full current session's messages for context.
     // Scoped to sessionId so a new session never bleeds in the previous session's raw messages.
-    // Cross-session continuity comes from {{PROFILE_CONTEXT}} and (for continue) sessionRecap.
+    // Cross-session continuity comes from {{PROFILE_CONTEXT}} and (for continue) the pinned
+    // prior-session recap injected via priorSummary above.
     // Cap at 200 turns to guard against context overflow on very long sessions.
     const SESSION_MESSAGE_CAP = 200;
     const history = await Message.find({ userId: req.user!.id, sessionId: sessionId ?? null })
@@ -46,7 +57,7 @@ router.post('/message', auth, async (req: Request, res: Response): Promise<void>
       .lean();
 
     const contextMessages: ChatCompletionMessageParam[] = [
-      { role: 'system', content: buildSystemPrompt(mode ?? 'free', profileContext, false) },
+      { role: 'system', content: buildSystemPrompt(mode ?? 'free', profileContext, false, priorSummary, toneInstruction) },
       ...history.map(m => ({
         role: m.role as 'user' | 'assistant',
         content: m.content,
@@ -64,18 +75,29 @@ router.post('/message', auth, async (req: Request, res: Response): Promise<void>
     res.flushHeaders();
 
     const FILTERED_FALLBACK = "I hear that something difficult is weighing on you. I'm here — take your time.";
+    const MAX_STREAM_ATTEMPTS = 2;
 
     let fullContent = '';
-    try {
-      for await (const token of streamTokens(contextMessages)) {
-        fullContent += token;
-        res.write(`data: ${JSON.stringify({ token })}\n\n`);
+    let contentFiltered = false;
+
+    // An empty stream is ambiguous: usually a transient gateway hiccup, sometimes
+    // a silently-filtered response. Retry once when nothing came through (safe —
+    // no tokens were sent to the client yet), and only fall back to the supportive
+    // message if it's still empty or was an explicit content filter.
+    for (let attempt = 1; attempt <= MAX_STREAM_ATTEMPTS; attempt++) {
+      try {
+        for await (const token of streamTokens(contextMessages)) {
+          fullContent += token;
+          res.write(`data: ${JSON.stringify({ token })}\n\n`);
+        }
+      } catch (streamErr) {
+        if ((streamErr as Error).message !== 'content_filter') throw streamErr;
+        contentFiltered = true;
       }
-    } catch (streamErr) {
-      if ((streamErr as Error).message !== 'content_filter') throw streamErr;
+      if (fullContent || contentFiltered) break;
+      console.warn(`[chat] empty stream on attempt ${attempt}/${MAX_STREAM_ATTEMPTS}, retrying`);
     }
 
-    // Gateway may silently return an empty stream instead of finish_reason:'content_filter'
     if (!fullContent) {
       fullContent = FILTERED_FALLBACK;
       res.write(`data: ${JSON.stringify({ token: fullContent })}\n\n`);

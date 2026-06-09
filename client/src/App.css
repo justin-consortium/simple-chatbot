@@ -699,6 +699,42 @@ body {
   cursor: not-allowed;
 }
 
+.ob-trait-chip-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.ob-trait-locked {
+  background: #eef2ff;
+  border-color: #4f46e5;
+  cursor: default;
+  pointer-events: none;
+}
+
+.ob-trait-locked .ob-trait-label {
+  color: #4f46e5;
+}
+
+.ob-locked-badge {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  background: #c7d2fe;
+  color: #3730a3;
+  border-radius: 999px;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.ob-lock-icon {
+  font-size: 0.8rem;
+  margin-right: 0.2rem;
+}
+
 .ob-trait-label {
   font-size: 0.9375rem;
   font-weight: 600;
@@ -825,6 +861,15 @@ body {
   margin-top: calc(-1 * var(--space-3));
 }
 
+.sleep-preparing {
+  font-size: var(--text-xs);
+  color: var(--color-text-soft);
+  letter-spacing: 0.03em;
+  margin-top: calc(-1 * var(--space-3));
+  font-style: italic;
+  animation: textBreathe 2.4s ease-in-out infinite;
+}
+
 /* ── Mode menu overlay ── */
 
 .mode-menu-overlay {
@@ -910,10 +955,16 @@ body {
   50%       { opacity: 0.72; transform: scale(0.965); }
 }
 
+@keyframes textBreathe {
+  0%, 100% { opacity: 0.5; }
+  50%       { opacity: 1;   }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .sleep-overlay,
   .mode-menu-overlay { animation: none; }
-  .sleep-avatar      { animation: none; }
+  .sleep-avatar,
+  .sleep-preparing   { animation: none; }
 }
 
 /* ── Responsive ── */

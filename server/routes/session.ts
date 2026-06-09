@@ -9,7 +9,9 @@ import Profile from '../models/Profile';
 import auth from '../middleware/auth';
 import { streamTokens, callOnce } from '../services/aiService';
 import { buildSystemPrompt } from '../services/promptService';
-import { renderProfileContext } from '../services/profileService';
+import { renderProfileContext, renderToneInstruction } from '../services/profileService';
+import { getContinueRecap } from '../services/summaryService';
+import { reconcileProfile } from '../services/reconcileService';
 import config from '../config/chatbot.config';
 
 const router = Router();
@@ -77,18 +79,22 @@ router.post('/end', auth, async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
-    await Summary.create({
-      userId: req.user!.id,
-      sessionId,
-      summary: {
-        caregiverState:       typeof parsed.caregiverState === 'string' ? parsed.caregiverState : '',
-        whatCameUp:           Array.isArray(parsed.whatCameUp) ? parsed.whatCameUp : [],
-        selfCareCoping:       Array.isArray(parsed.selfCareCoping) ? parsed.selfCareCoping : [],
-        careSituationUpdates: typeof parsed.careSituationUpdates === 'string' ? parsed.careSituationUpdates : '',
-        interactionNotes:     typeof parsed.interactionNotes === 'string' ? parsed.interactionNotes : '',
-        sessionRecap,
-      },
-    });
+    const summaryContent = {
+      caregiverState:       typeof parsed.caregiverState === 'string' ? parsed.caregiverState : '',
+      whatCameUp:           Array.isArray(parsed.whatCameUp) ? parsed.whatCameUp as string[] : [],
+      selfCareCoping:       Array.isArray(parsed.selfCareCoping) ? parsed.selfCareCoping as { approach: string; effect: string }[] : [],
+      careSituationUpdates: typeof parsed.careSituationUpdates === 'string' ? parsed.careSituationUpdates : '',
+      interactionNotes:     typeof parsed.interactionNotes === 'string' ? parsed.interactionNotes : '',
+      sessionRecap,
+    };
+
+    await Summary.create({ userId: req.user!.id, sessionId, summary: summaryContent });
+
+    // Fold this session into the caregiver's living profile before responding,
+    // so the next session reads an up-to-date profile and the client's "tap to
+    // continue" affordance (gated on this request finishing) can't race the
+    // rewrite. Best-effort: a reconcile failure keeps the prior profile.
+    await reconcileProfile(req.user!.id, summaryContent);
 
     res.json({ success: true });
   } catch (err) {
@@ -100,7 +106,11 @@ router.post('/end', auth, async (req: Request, res: Response): Promise<void> => 
 // POST /api/session/start
 // Generates and streams an opening message from the agent.
 router.post('/start', auth, async (req: Request, res: Response): Promise<void> => {
-  const { mode, sessionId } = req.body as { mode?: string; sessionId?: string };
+  const { mode, sessionId, continuedSummaryId } = req.body as {
+    mode?: string;
+    sessionId?: string;
+    continuedSummaryId?: string;
+  };
   if (!sessionId) {
     res.status(400).json({ error: 'sessionId required' });
     return;
@@ -109,17 +119,18 @@ router.post('/start', auth, async (req: Request, res: Response): Promise<void> =
   try {
     const profile = await Profile.findOne({ userId: req.user!.id }).lean();
     const profileContext = profile ? renderProfileContext(profile) : '';
+    const toneInstruction = profile ? renderToneInstruction(profile.tone) : '';
 
     const latestSummary = await Summary.findOne({ userId: req.user!.id })
       .sort({ createdAt: -1 })
       .lean();
     const isFirstSession = !latestSummary;
 
-    const priorSummary = mode === 'continue' && latestSummary
-      ? latestSummary.summary.sessionRecap
-      : '';
+    // For continue mode, use the exact summary the client pinned at session start
+    // (falls back to latest). Scoped by userId inside the helper.
+    const priorSummary = await getContinueRecap(req.user!.id, mode, continuedSummaryId);
 
-    const systemPrompt = buildSystemPrompt(mode ?? 'free', profileContext, false, priorSummary);
+    const systemPrompt = buildSystemPrompt(mode ?? 'free', profileContext, false, priorSummary, toneInstruction);
     const openerInstruction = isFirstSession ? openerFirst : openerReturning;
 
     const messages: ChatCompletionMessageParam[] = [

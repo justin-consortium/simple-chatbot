@@ -1,10 +1,14 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import Baseline from '../models/Baseline';
 import Profile from '../models/Profile';
+import { seedProfileFromBaseline } from '../services/profileService';
 import auth from '../middleware/auth';
 
 const router = Router();
 
+// Returns the evolving Profile (the rendered source). Used by the client for the
+// onboarding existence guard and to display the caregiver's name.
 router.get('/', auth, async (req: Request, res: Response): Promise<void> => {
   try {
     const profile = await Profile.findOne({ userId: req.user!.id }).lean();
@@ -21,7 +25,7 @@ router.get('/', auth, async (req: Request, res: Response): Promise<void> => {
 interface ProfileBody {
   displayName?: string;
   supportStyle?: string[];
-  personaTraits?: string[];
+  toneModifier?: string;
   recharge?: { categories?: string[]; other?: string };
   caregiverProfile?: {
     relationship?: string;
@@ -30,6 +34,9 @@ interface ProfileBody {
   };
 }
 
+// Onboarding completion. Onboarding runs exactly once: this writes the immutable
+// Baseline and seeds the evolving Profile from it, both once. There is no edit
+// path — a repeat submission is rejected.
 router.post('/', auth, async (req: Request, res: Response): Promise<void> => {
   const body = req.body as ProfileBody;
 
@@ -37,45 +44,39 @@ router.post('/', auth, async (req: Request, res: Response): Promise<void> => {
     res.status(400).json({ error: 'displayName is required' });
     return;
   }
-  if (body.personaTraits && body.personaTraits.length > 3) {
-    res.status(400).json({ error: 'personaTraits may not exceed 3 selections' });
-    return;
-  }
 
   try {
-    const profile = await Profile.findOneAndUpdate(
-      { userId: req.user!.id },
-      {
-        $set: {
-          displayName: body.displayName.trim(),
-          supportStyle: body.supportStyle ?? [],
-          personaTraits: body.personaTraits ?? [],
-          recharge: {
-            categories: body.recharge?.categories ?? [],
-            other: body.recharge?.other?.trim() ?? '',
-          },
-          caregiverProfile: {
-            relationship: body.caregiverProfile?.relationship ?? '',
-            caregivingDurationMonths: body.caregiverProfile?.caregivingDurationMonths ?? 0,
-            careTypes: body.caregiverProfile?.careTypes ?? [],
-          },
-          onboardingCompletedAt: new Date(),
-        },
+    const existing = await Baseline.findOne({ userId: req.user!.id }).lean();
+    if (existing) {
+      res.status(409).json({ error: 'Onboarding already completed' });
+      return;
+    }
+
+    const baseline = await Baseline.create({
+      userId: req.user!.id,
+      displayName: body.displayName.trim(),
+      supportStyle: body.supportStyle ?? [],
+      toneModifier: body.toneModifier ?? '',
+      recharge: {
+        categories: body.recharge?.categories ?? [],
+        other: body.recharge?.other?.trim() ?? '',
       },
-      { upsert: true, new: true }
-    );
-    res.status(200).json(profile);
+      caregiverProfile: {
+        relationship: body.caregiverProfile?.relationship ?? '',
+        caregivingDurationMonths: body.caregiverProfile?.caregivingDurationMonths ?? 0,
+        careTypes: body.caregiverProfile?.careTypes ?? [],
+      },
+      onboardingCompletedAt: new Date(),
+    });
+
+    const profile = await Profile.create({
+      userId: req.user!.id,
+      ...seedProfileFromBaseline(baseline),
+    });
+
+    res.status(201).json(profile);
   } catch {
     res.status(500).json({ error: 'Failed to save profile' });
-  }
-});
-
-router.delete('/', auth, async (req: Request, res: Response): Promise<void> => {
-  try {
-    await Profile.deleteOne({ userId: req.user!.id });
-    res.json({ success: true });
-  } catch {
-    res.status(500).json({ error: 'Failed to delete profile' });
   }
 });
 
