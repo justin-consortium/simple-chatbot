@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/client';
-import { AGENT_NAME, AGENT_IMAGE } from '../config/agent';
+import { AGENT_IMAGE } from '../config/agent';
 
 const TOTAL_STEPS = 5;
 
@@ -150,12 +150,12 @@ export default function Onboarding() {
       <div className="onboarding-container">
         <div className="onboarding-card">
           <div className="ob-body ob-intro">
-            <img src={AGENT_IMAGE} alt={AGENT_NAME} className="ob-intro-image" />
-            <span className="ob-agent-name">{AGENT_NAME}</span>
+            <img src={AGENT_IMAGE} alt="Companion" className="ob-intro-image" />
             <p className="ob-greeting">
-              Hi, I'm {AGENT_NAME}. I'm here to listen and support you.
+              Welcome to the CareQOL Chat study!
+              <br /> I'm a companion here to listen and support you.
               <br />
-              Before we start, I'd love to learn a little about how I can show up for you.
+              Before we start, I'd love to learn a little about you and how best to support you.
             </p>
             <button className="btn-primary ob-intro-btn" onClick={() => setStep(1)}>
               Let's get started
@@ -177,8 +177,7 @@ export default function Onboarding() {
         <div className="ob-body">
           <div className="ob-bubble-row">
             <div className="ob-bubble-agent">
-              <img src={AGENT_IMAGE} alt={AGENT_NAME} className="ob-bubble-avatar" />
-              <span className="ob-bubble-name">{AGENT_NAME}</span>
+              <img src={AGENT_IMAGE} alt="Companion" className="ob-bubble-avatar" />
             </div>
             <div className="ob-speech-bubble">{STEP_QUESTIONS[step]}</div>
           </div>

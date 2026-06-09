@@ -29,10 +29,13 @@ export default function Login() {
 
   return (
     <div className="login-page">
-      <h1 className="login-hero-title">CareQOL Chat Study</h1>
-      <p className="login-hero-subtitle">Caring for the Caregiver</p>
+      <main className="login-content">
+        <header className="login-hero">
+          <h1 className="login-hero-title">CareQOL Chat Study</h1>
+          <p className="login-hero-subtitle">Caring for the Caregiver</p>
+        </header>
 
-      <div className="login-form-section">
+        <div className="login-form-section">
         {error && <div className="error-message">{error}</div>}
         <form onSubmit={handleSubmit}>
           <div className="form-group">
@@ -66,7 +69,8 @@ export default function Login() {
         <p className="auth-switch">
           Don&apos;t have an account? <Link to="/register">Register</Link>
         </p>
-      </div>
+        </div>
+      </main>
     </div>
   );
 }

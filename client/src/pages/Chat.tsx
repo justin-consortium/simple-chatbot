@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo, Children, isValidElement } from '
 import type { KeyboardEvent, ReactElement } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { AGENT_IMAGE, AGENT_NAME } from '../config/agent';
+import { AGENT_IMAGE } from '../config/agent';
 import api from '../api/client';
 import ReactMarkdown from 'react-markdown';
 import type { Components } from 'react-markdown';
@@ -404,7 +404,7 @@ export default function Chat() {
           aria-label="Tap to continue"
         >
           <div className="sleep-content">
-            <img src={AGENT_IMAGE} alt={AGENT_NAME} className="sleep-avatar" />
+            <img src={AGENT_IMAGE} alt="Companion" className="sleep-avatar" />
             <p className="sleep-label">I'm here whenever you need me</p>
             {sessionEndReady ? (
               <p className="sleep-hint">Tap anywhere to continue</p>
@@ -418,7 +418,7 @@ export default function Chat() {
       {sessionState === 'menu' && (
         <div className="mode-menu-overlay" onClick={handleSkipMenu}>
           <div className="mode-menu-card" onClick={e => e.stopPropagation()}>
-            <img src={AGENT_IMAGE} alt={AGENT_NAME} className="mode-menu-avatar" />
+            <img src={AGENT_IMAGE} alt="Companion" className="mode-menu-avatar" />
             <h2 className="mode-menu-heading">{menuHeading}</h2>
             <div className="mode-menu-options">
               {MODE_OPTIONS
@@ -448,8 +448,7 @@ export default function Chat() {
             </button>
           </div>
           <div className="chat-header-center">
-            <img src={AGENT_IMAGE} alt={AGENT_NAME} className="chat-agent-avatar" />
-            <span className="chat-title">{AGENT_NAME}</span>
+            <img src={AGENT_IMAGE} alt="Companion" className="chat-agent-avatar" />
           </div>
           <div className="chat-header-right">
             <span className="chat-username">{displayName || user?.username}</span>
