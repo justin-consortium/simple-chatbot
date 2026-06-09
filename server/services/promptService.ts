@@ -25,6 +25,7 @@ export function buildSystemPrompt(
   profileContext: string = '',
   debug: boolean = false,
   priorSummary: string = '',
+  toneInstruction: string = '',
 ): string {
   const resolvedMode = modeModules[mode] ? mode : 'free';
   let modeText = modeModules[resolvedMode];
@@ -37,7 +38,8 @@ export function buildSystemPrompt(
 
   let prompt = background
     .replace('{{THIS_CONVERSATION}}', modeText)
-    .replace('{{PROFILE_CONTEXT}}', profileContext);
+    .replace('{{PROFILE_CONTEXT}}', profileContext)
+    .replace('{{TONE}}', toneInstruction);
 
   if (debug) {
     prompt += DEBUG_FOOTER(resolvedMode);

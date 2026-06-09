@@ -9,12 +9,12 @@ Do not record acute crisis or self-harm specifics. If a session touched on crisi
 Most sessions won't have something for every field — that's expected. Include only what's actually in the conversation; if a field has nothing, leave it empty ([] or ""). Never infer, stretch, or invent to fill a field. Keep entries compact: brief phrases or a single sentence is usually enough, and a few high-signal items beat an exhaustive list.
 
 Fields:
-- caregiverState: 1-2 sentences on how they seemed or said they were doing.
+- caregiverState: 1–2 sentences on how they seemed or said they were doing — their emotional and physical state.
 - whatCameUp: notable events or topics, across any area of life. [] if none.
 - selfCareCoping: anything they did for themselves or to cope, and whether it helped or didn't. [] if none.
 - careSituationUpdates: changes in the caregiving situation — e.g., a shift in caregiving intensity or responsibilities, a change in the support they're getting, a change in the care recipient's status or behavior, or family dynamics around the caregiving. "" if none.
 - interactionNotes: anything they expressed about the chatbot itself — how they want it to respond, reactions to its suggestions or manner, or feelings about talking to a bot. "" if none.
-- sessionRecap: 1-2 sentences, in the third person, capturing what they were dealing with and where the conversation had gotten to — written as context for naturally picking the thread back up next time. "" if the session had no substantive thread.
+- sessionRecap: 1–2 sentences, in the third person, capturing what they were dealing with, how they were feeling, and where the conversation had gotten to — written as context for naturally picking the thread back up next time. "" if the session had no substantive thread.
 
 Return JSON only, in this shape:
 {

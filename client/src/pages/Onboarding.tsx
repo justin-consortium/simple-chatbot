@@ -15,7 +15,7 @@ const SUPPORT_STYLE_OPTIONS = [
 
 const TONE_MODIFIER_OPTIONS = [
   { code: 'direct',       label: 'Direct',       description: 'Get to the point in a plain-spoken way.' },
-  { code: 'professional', label: 'Professional', description: 'Composed and measured, a little more formal.' },
+  { code: 'professional', label: 'Professional', description: 'Stays grounded with a steady, formal tone.' },
   { code: 'humorous',     label: 'Humorous',     description: 'A little lightness when the moment fits.' },
 ];
 

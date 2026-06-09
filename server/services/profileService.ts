@@ -1,7 +1,7 @@
 interface ProfileData {
   displayName: string;
   supportStyle: string[];
-  personaTraits: string[];
+  toneModifier: string;
   recharge: { categories: string[]; other: string };
   caregiverProfile: {
     relationship: string;
@@ -30,14 +30,6 @@ const CARE_TYPE_LABELS: Record<string, string> = {
   healthcare:    'healthcare coordination',
   financial:     'financial management',
   mobility:      'mobility assistance',
-};
-
-const SUPPORT_STYLE_LABELS: Record<string, string> = {
-  listen:     'be heard and have their feelings validated',
-  make_sense: 'make sense of what they\'re feeling',
-  reframe:    'see things from another angle',
-  figure_out: 'work through what to do',
-  inform:     'get information or learn something',
 };
 
 const RECHARGE_LABELS: Record<string, string> = {
@@ -76,15 +68,6 @@ export function renderProfileContext(profile: ProfileData): string {
   situationLine += '.';
   parts.push(situationLine);
 
-  if (profile.supportStyle.length) {
-    const styles = labelList(profile.supportStyle, SUPPORT_STYLE_LABELS);
-    parts.push(`When something is weighing on them, they most appreciate conversations that help them ${styles}.`);
-  }
-
-  if (profile.personaTraits.length) {
-    parts.push(`They prefer a companion who is: ${profile.personaTraits.join(', ')}.`);
-  }
-
   const rechargeItems = [
     ...profile.recharge.categories.map((r: string) => RECHARGE_LABELS[r] ?? r),
     ...(profile.recharge.other ? [profile.recharge.other] : []),
@@ -96,4 +79,19 @@ export function renderProfileContext(profile: ProfileData): string {
   if (!parts.length) return '';
 
   return `# ABOUT THIS CAREGIVER\nTheir name is ${profile.displayName}. ${parts.join(' ')}`;
+}
+
+const TONE_INSTRUCTIONS: Record<string, string> = {
+  professional: 'A composed lean on the warm baseline. Stay even-keeled and less bubbly; treat them as a capable adult. Keep it personable — never cold or stiff.',
+  direct:       'A plain-spoken lean on the warm baseline. Get to the point and go light on hedging; trust them with a straight answer. Don\'t skip past what they\'re feeling — clear, not curt.',
+  humorous:     'A light-touch lean on the warm baseline. Bring in gentle humor when the mood allows. Read the moment and ease off when they\'re struggling — never to minimize.',
+};
+
+// Rendered into the YOUR MANNER section (the {{TONE}} placeholder), so it reads
+// as a directive about how to come across, not a fact about the caregiver.
+// Returns '' (no modifier chosen) or a leading-space sentence to append inline.
+export function renderToneInstruction(toneModifier: string): string {
+  const desc = TONE_INSTRUCTIONS[toneModifier];
+  if (!desc) return '';
+  return ` They've asked you to adjust how you come across: ${desc}`;
 }

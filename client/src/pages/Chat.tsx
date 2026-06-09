@@ -73,6 +73,13 @@ export default function Chat() {
     return newId;
   });
   const [hasPriorSummary, setHasPriorSummary] = useState(false);
+  // _id of the user's latest summary (candidate to continue from).
+  const [latestSummaryId, setLatestSummaryId] = useState<string | null>(null);
+  // The summary this session is pinned to continue, persisted so a mid-session
+  // reload keeps referencing the same one. Null for non-continue sessions.
+  const [continuedSummaryId, setContinuedSummaryId] = useState<string | null>(
+    () => sessionStorage.getItem('continuedSummaryId')
+  );
   const [menuHeading, setMenuHeading] = useState(MENU_HEADINGS[0]);
   const [sessionEndReady, setSessionEndReady] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -94,7 +101,7 @@ export default function Chat() {
   }, [messages]);
 
   // Streams the agent's opening message for a new session.
-  const startSession = async (mode: string, sid: string) => {
+  const startSession = async (mode: string, sid: string, continuedId?: string | null) => {
     const openerMsg: ChatMessage = { _id: 'opener', role: 'assistant', content: '', streaming: true, sessionId: sid };
     setMessages(prev => [...prev, openerMsg]);
 
@@ -102,7 +109,7 @@ export default function Chat() {
       const response = await fetch('/api/session/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode, sessionId: sid }),
+        body: JSON.stringify({ mode, sessionId: sid, continuedSummaryId: continuedId ?? undefined }),
         credentials: 'include',
       });
 
@@ -165,18 +172,18 @@ export default function Chat() {
     const init = async () => {
       const [historyResult, summaryResult] = await Promise.allSettled([
         api.get<ChatMessage[]>('/chat/history'),
-        api.get<{ summary: unknown }>('/session/latest-summary'),
+        api.get<{ summary: { _id: string } | null }>('/session/latest-summary'),
       ]);
 
       const msgs = historyResult.status === 'fulfilled' ? historyResult.value.data : [];
-      const hasSummary =
-        summaryResult.status === 'fulfilled' && summaryResult.value.data.summary !== null;
+      const latest = summaryResult.status === 'fulfilled' ? summaryResult.value.data.summary : null;
 
       setMessages(msgs);
-      setHasPriorSummary(hasSummary);
+      setHasPriorSummary(latest !== null);
+      setLatestSummaryId(latest?._id ?? null);
       setHistoryLoading(false);
 
-      if (!hasSummary && msgs.length === 0) {
+      if (latest === null && msgs.length === 0) {
         void startSession('free', sessionId);
       }
     };
@@ -223,8 +230,9 @@ export default function Chat() {
 
     setMenuHeading(MENU_HEADINGS[Math.floor(Math.random() * MENU_HEADINGS.length)]);
     try {
-      const res = await api.get<{ summary: unknown }>('/session/latest-summary');
+      const res = await api.get<{ summary: { _id: string } | null }>('/session/latest-summary');
       setHasPriorSummary(res.data.summary !== null);
+      setLatestSummaryId(res.data.summary?._id ?? null);
     } catch {
       // keep existing value if fetch fails
     }
@@ -237,7 +245,15 @@ export default function Chat() {
     setSessionId(newId);
     setSessionMode(mode);
     setSessionState('active');
-    void startSession(mode, newId);
+
+    // Pin the summary being continued so the whole session references the same one,
+    // even if another session ends and becomes "latest" in the meantime.
+    const pinned = mode === 'continue' ? latestSummaryId : null;
+    setContinuedSummaryId(pinned);
+    if (pinned) sessionStorage.setItem('continuedSummaryId', pinned);
+    else sessionStorage.removeItem('continuedSummaryId');
+
+    void startSession(mode, newId, pinned);
   };
 
   const handleSkipMenu = () => {
@@ -246,7 +262,9 @@ export default function Chat() {
     setSessionId(newId);
     setSessionMode('free');
     setSessionState('active');
-    void startSession('free', newId);
+    setContinuedSummaryId(null);
+    sessionStorage.removeItem('continuedSummaryId');
+    void startSession('free', newId, null);
   };
 
   const handleSend = async (): Promise<void> => {
@@ -264,7 +282,7 @@ export default function Chat() {
       const response = await fetch('/api/chat/message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content, mode: sessionMode, sessionId }),
+        body: JSON.stringify({ content, mode: sessionMode, sessionId, continuedSummaryId: continuedSummaryId ?? undefined }),
         credentials: 'include',
       });
 
