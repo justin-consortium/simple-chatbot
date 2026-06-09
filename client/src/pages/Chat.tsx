@@ -48,6 +48,19 @@ const MENU_HEADINGS = [
   'What would you like this time to be?',
 ];
 
+// Shown one at a time while the session-end summarize + reconcile finishes, so
+// the resting screen feels like the companion is gently getting ready rather
+// than frozen. Picked once per wind-down so it doesn't flicker.
+const PREPARING_LABELS = [
+  'Just putting the kettle on…',
+  'Tidying up a little…',
+  'Pulling up a chair…',
+  'Getting us settled…',
+  'Gathering my thoughts…',
+  'Making a little space…',
+  'Straightening the cushions…',
+];
+
 const MODE_OPTIONS: { mode: SessionMode; label: string; requiresSummary?: boolean }[] = [
   { mode: 'continue', label: 'Continue our last conversation', requiresSummary: true },
   { mode: 'vent',     label: 'Get some feelings out' },
@@ -64,7 +77,11 @@ export default function Chat() {
   const [historyLoading, setHistoryLoading] = useState(true);
   const [displayName, setDisplayName] = useState('');
   const [sessionState, setSessionState] = useState<SessionState>('active');
-  const [sessionMode, setSessionMode] = useState<SessionMode>('free');
+  const [sessionMode, setSessionMode] = useState<SessionMode>(() => {
+    const stored = sessionStorage.getItem('sessionMode');
+    const valid: SessionMode[] = ['vent', 'reflect', 'solve', 'free', 'continue'];
+    return stored && valid.includes(stored as SessionMode) ? (stored as SessionMode) : 'free';
+  });
   const [sessionId, setSessionId] = useState<string>(() => {
     const stored = sessionStorage.getItem('sessionId');
     if (stored) return stored;
@@ -82,23 +99,26 @@ export default function Chat() {
   );
   const [menuHeading, setMenuHeading] = useState(MENU_HEADINGS[0]);
   const [sessionEndReady, setSessionEndReady] = useState(false);
+  const [preparingLabel, setPreparingLabel] = useState(PREPARING_LABELS[0]);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const sessionEndRef = useRef<Promise<void> | null>(null);
 
-  // Computes the display list by injecting a divider wherever the sessionId changes.
+  // Inserts a single "New conversation" divider where the current session begins,
+  // separating it from the earlier history. Older sessions in the history flow
+  // continuously (no dividers between them). No divider on the first-ever
+  // conversation (nothing precedes it) or while only history is shown.
   const displayItems = useMemo((): MessageItem[] => {
+    const firstCurrentIdx = messages.findIndex(m => m.sessionId === sessionId);
     const items: MessageItem[] = [];
-    let prevSessionId: string | undefined;
-    for (const msg of messages) {
-      if (msg.sessionId && msg.sessionId !== prevSessionId && prevSessionId !== undefined) {
-        items.push({ type: 'divider', _id: `div-${msg.sessionId}` });
+    messages.forEach((msg, i) => {
+      if (i === firstCurrentIdx && firstCurrentIdx > 0) {
+        items.push({ type: 'divider', _id: 'div-current' });
       }
-      prevSessionId = msg.sessionId ?? prevSessionId;
       items.push(msg);
-    }
+    });
     return items;
-  }, [messages]);
+  }, [messages, sessionId]);
 
   // Streams the agent's opening message for a new session.
   const startSession = async (mode: string, sid: string, continuedId?: string | null) => {
@@ -183,6 +203,15 @@ export default function Chat() {
       setLatestSummaryId(latest?._id ?? null);
       setHistoryLoading(false);
 
+      // Refreshed while between sessions (paused/sleeping or menu): restore the
+      // mode menu rather than dropping into a silent new conversation. The
+      // summary fetched above already populates the "continue" option.
+      if (sessionStorage.getItem('pendingMenu')) {
+        setMenuHeading(MENU_HEADINGS[Math.floor(Math.random() * MENU_HEADINGS.length)]);
+        setSessionState('menu');
+        return;
+      }
+
       if (latest === null && msgs.length === 0) {
         void startSession('free', sessionId);
       }
@@ -206,7 +235,12 @@ export default function Chat() {
 
   const endSession = () => {
     sessionStorage.removeItem('sessionId');
+    sessionStorage.removeItem('sessionMode');
+    // Mark that we're between sessions, so a refresh restores the mode menu
+    // rather than silently dropping into a new conversation.
+    sessionStorage.setItem('pendingMenu', '1');
     setSessionEndReady(false);
+    setPreparingLabel(PREPARING_LABELS[Math.floor(Math.random() * PREPARING_LABELS.length)]);
     sessionEndRef.current = fetch('/api/session/end', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -242,6 +276,8 @@ export default function Chat() {
   const handleModeSelect = (mode: SessionMode) => {
     const newId = crypto.randomUUID();
     sessionStorage.setItem('sessionId', newId);
+    sessionStorage.setItem('sessionMode', mode);
+    sessionStorage.removeItem('pendingMenu');
     setSessionId(newId);
     setSessionMode(mode);
     setSessionState('active');
@@ -259,6 +295,8 @@ export default function Chat() {
   const handleSkipMenu = () => {
     const newId = crypto.randomUUID();
     sessionStorage.setItem('sessionId', newId);
+    sessionStorage.setItem('sessionMode', 'free');
+    sessionStorage.removeItem('pendingMenu');
     setSessionId(newId);
     setSessionMode('free');
     setSessionState('active');
@@ -353,11 +391,6 @@ export default function Chat() {
     navigate('/login');
   };
 
-  const handleResetOnboarding = async (): Promise<void> => {
-    await api.delete('/profile');
-    navigate('/onboarding');
-  };
-
   return (
     <div className="chat-layout">
 
@@ -372,8 +405,12 @@ export default function Chat() {
         >
           <div className="sleep-content">
             <img src={AGENT_IMAGE} alt={AGENT_NAME} className="sleep-avatar" />
-            <p className="sleep-label">I'm here whenever you're ready</p>
-            {sessionEndReady && <p className="sleep-hint">Tap anywhere to continue</p>}
+            <p className="sleep-label">I'm here whenever you need me</p>
+            {sessionEndReady ? (
+              <p className="sleep-hint">Tap anywhere to continue</p>
+            ) : (
+              <p className="sleep-preparing">{preparingLabel}</p>
+            )}
           </div>
         </div>
       )}
@@ -409,11 +446,6 @@ export default function Chat() {
             <button onClick={endSession} className="btn-dev">
               End session
             </button>
-            {import.meta.env.DEV && (
-              <button onClick={() => void handleResetOnboarding()} className="btn-dev">
-                Redo onboarding
-              </button>
-            )}
           </div>
           <div className="chat-header-center">
             <img src={AGENT_IMAGE} alt={AGENT_NAME} className="chat-agent-avatar" />

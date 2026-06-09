@@ -1,13 +1,23 @@
-interface ProfileData {
+import type { IBaseline } from '../models/Baseline';
+import type { CopingEntry } from '../models/Profile';
+
+// What the render path needs from the evolving Profile. Kept structural (not the
+// full Mongoose document) so both lean() reads and documents satisfy it.
+interface RenderableProfile {
   displayName: string;
-  supportStyle: string[];
-  toneModifier: string;
-  recharge: { categories: string[]; other: string };
-  caregiverProfile: {
-    relationship: string;
-    caregivingDurationMonths: number;
-    careTypes: string[];
-  };
+  tone: string;
+  coping: CopingEntry[];
+  caregivingSituation: string;
+  threads: string[];
+}
+
+// The fields reconcile/seed write — the mutable subset plus the frozen name.
+export interface SeededProfile {
+  displayName: string;
+  tone: string;
+  coping: CopingEntry[];
+  caregivingSituation: string;
+  threads: string[];
 }
 
 const RELATIONSHIP_LABELS: Record<string, string> = {
@@ -43,6 +53,16 @@ const RECHARGE_LABELS: Record<string, string> = {
   watching:    'watching or playing',
 };
 
+// Intake tone code -> a short, bare standing preference. The render layer adds
+// the directive framing (see renderToneInstruction); reconcile later rewrites
+// this free-text from the caregiver's expressed preferences. Empty modifier ->
+// empty tone (the always-on warm baseline still applies).
+const TONE_SEED: Record<string, string> = {
+  direct:       'direct and to the point, going easy on hedging',
+  professional: 'composed and even-keeled — warm, but not overly casual',
+  humorous:     'open to gentle humor when the moment allows',
+};
+
 function durationText(months: number): string {
   if (!months) return '';
   if (months < 12) return `${months} month${months === 1 ? '' : 's'}`;
@@ -54,44 +74,83 @@ function labelList(codes: string[], map: Record<string, string>): string {
   return codes.map(c => map[c] ?? c).join(', ');
 }
 
-export function renderProfileContext(profile: ProfileData): string {
-  const parts: string[] = [];
-  const c = profile.caregiverProfile;
+// --- Onboarding -> seed mapping ---------------------------------------------
+// Run once at onboarding completion, deriving the evolving Profile from the
+// immutable Baseline. The code->label mapping happens here (not at render).
 
+function seedCaregivingSituation(c: IBaseline['caregiverProfile']): string {
   const relationship = RELATIONSHIP_LABELS[c.relationship] ?? c.relationship;
+  if (!relationship) return '';
   const duration = durationText(c.caregivingDurationMonths);
   const careTypes = c.careTypes.length ? labelList(c.careTypes, CARE_TYPE_LABELS) : '';
 
-  let situationLine = `They are caring for their ${relationship}`;
-  if (duration) situationLine += `, and have been doing so for ${duration}`;
-  if (careTypes) situationLine += `. Their caregiving includes: ${careTypes}`;
-  situationLine += '.';
-  parts.push(situationLine);
-
-  const rechargeItems = [
-    ...profile.recharge.categories.map((r: string) => RECHARGE_LABELS[r] ?? r),
-    ...(profile.recharge.other ? [profile.recharge.other] : []),
-  ];
-  if (rechargeItems.length) {
-    parts.push(`Outside of caregiving, they recharge through: ${rechargeItems.join(', ')}.`);
-  }
-
-  if (!parts.length) return '';
-
-  return `# ABOUT THIS CAREGIVER\nTheir name is ${profile.displayName}. ${parts.join(' ')}`;
+  let line = `Caring for their ${relationship}`;
+  if (duration) line += `, for ${duration}`;
+  if (careTypes) line += `. Their caregiving includes: ${careTypes}`;
+  line += '.';
+  return line;
 }
 
-const TONE_INSTRUCTIONS: Record<string, string> = {
-  professional: 'A composed lean on the warm baseline. Stay even-keeled and less bubbly; treat them as a capable adult. Keep it personable — never cold or stiff.',
-  direct:       'A plain-spoken lean on the warm baseline. Get to the point and go light on hedging; trust them with a straight answer. Don\'t skip past what they\'re feeling — clear, not curt.',
-  humorous:     'A light-touch lean on the warm baseline. Bring in gentle humor when the mood allows. Read the moment and ease off when they\'re struggling — never to minimize.',
-};
+function seedCoping(recharge: IBaseline['recharge']): CopingEntry[] {
+  const entries: CopingEntry[] = recharge.categories.map(code => ({
+    approach: RECHARGE_LABELS[code] ?? code,
+    effect: '',
+  }));
+  if (recharge.other) entries.push({ approach: recharge.other, effect: '' });
+  return entries;
+}
 
-// Rendered into the YOUR MANNER section (the {{TONE}} placeholder), so it reads
-// as a directive about how to come across, not a fact about the caregiver.
-// Returns '' (no modifier chosen) or a leading-space sentence to append inline.
-export function renderToneInstruction(toneModifier: string): string {
-  const desc = TONE_INSTRUCTIONS[toneModifier];
-  if (!desc) return '';
-  return ` They've asked you to adjust how you come across: ${desc}`;
+export function seedProfileFromBaseline(baseline: IBaseline): SeededProfile {
+  return {
+    displayName: baseline.displayName,
+    tone: TONE_SEED[baseline.toneModifier] ?? '',
+    coping: seedCoping(baseline.recharge),
+    caregivingSituation: seedCaregivingSituation(baseline.caregiverProfile),
+    threads: [],
+  };
+}
+
+// --- Render -----------------------------------------------------------------
+
+function copingText(coping: CopingEntry[]): string {
+  return coping
+    .filter(c => c.approach)
+    .map(c => (c.effect ? `${c.approach} (${c.effect})` : c.approach))
+    .join(', ');
+}
+
+// Renders the {{PROFILE_CONTEXT}} facts block. Background the companion carries,
+// not a script. `tone` is NOT rendered here — it's a manner directive and goes
+// into {{TONE}} under YOUR MANNER (see renderToneInstruction).
+export function renderProfileContext(profile: RenderableProfile): string {
+  const lines: string[] = [];
+
+  if (profile.caregivingSituation) lines.push(`Her situation: ${profile.caregivingSituation}`);
+
+  const coping = copingText(profile.coping ?? []);
+  if (coping) lines.push(`What helps her recharge: ${coping}.`);
+
+  const threads = (profile.threads ?? []).filter(Boolean);
+  if (threads.length) lines.push(`What's been going on for her: ${threads.join('; ')}.`);
+
+  const intro = `Her name is ${profile.displayName}.`;
+  if (!lines.length) {
+    // Name alone is still worth carrying.
+    return `# ABOUT THIS CAREGIVER\n${intro}`;
+  }
+
+  return (
+    `# ABOUT THIS CAREGIVER\n${intro} ${lines.join(' ')}\n\n` +
+    `Carry this as background — let it shape your warmth and what you understand ` +
+    `about her. Don't list it back to her or bring items up unprompted; let her lead.`
+  );
+}
+
+// Renders the {{TONE}} placeholder appended inline to the YOUR MANNER section,
+// so the living tone reads as a directive about how to come across, layered on
+// the always-on warm baseline — not a fact about the caregiver. Returns '' when
+// there's no standing preference, or a leading-space sentence to append inline.
+export function renderToneInstruction(tone: string): string {
+  if (!tone) return '';
+  return ` They've asked you to adjust how you come across: ${tone}.`;
 }

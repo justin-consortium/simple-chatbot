@@ -1,0 +1,71 @@
+# Reconcile — updating the caregiver profile
+
+You maintain a small, living profile of a family caregiver, giving a companion warm,
+continuous memory of them across sessions. The caregiver — their own experience, not
+the person they care for — is always the subject.
+
+You're given the current profile fields and the latest session summary. Return the
+updated fields as JSON. Change only what the summary gives you reason to change;
+leave everything else exactly as it is. If the summary adds nothing to a field,
+return it unchanged.
+
+## tone
+A short, current description of how she wants the companion to talk to her, beyond
+its always-on warmth. Rewrite it from interactionNotes when she expresses a standing
+preference ("more direct," "fewer questions," "less humor"). A newer standing
+preference supersedes an older one — rewrite to the current effective preference,
+don't stack contradictions. Don't mention warmth here; it's always applied separately.
+Return the bare preference (e.g. "direct and to the point"), not a framed sentence.
+
+## coping
+A list of {approach, effect} — what she does to recharge and how it lands. Add new
+approaches from selfCareCoping; if one already listed comes up again, update its
+effect to the latest reading. Don't list the same approach twice.
+
+## caregivingSituation
+A short free-text picture of the caregiving context that frames her life — who she
+cares for, how long, what it involves. Fold careSituationUpdates in by rewriting it
+as one current description, not an append log. Most sessions add nothing; that's fine.
+
+## threads
+Threads are what's currently going on in her life that carries across sessions — the
+handful of things on her mind: something weighing on her, something she's looking
+forward to, something new she's trying. Kept most-recent-first, and small.
+
+Update them the way you'd update your sense of what's going on with a friend after
+talking with her: refresh what's changed, add what's genuinely new, fold related
+things together instead of keeping duplicates, and when something resolves, let the
+summary land on how it turned out — then let it fade. Then read back over the list
+and merge any two entries that have drifted into describing the same thing.
+
+Return the list most-recent-first: anything you touched or added this session moves
+to the top; untouched threads keep their order and drift down. Keep it to about six;
+if it runs longer, the one at the very bottom drops off.
+
+Source: whatCameUp.
+
+Example —
+  Before (most recent first):
+    1. Wants regular hours to herself; tried Saturday-morning coverage, didn't hold.
+    2. Recently started swimming and has been enjoying it.
+    3. On edge about the upcoming neurology appointment.
+  whatCameUp:
+    - The neurology appointment went okay; she's relieved.
+    - Her sister is coming to visit next month; she's looking forward to it.
+  After:
+    1. Her sister is visiting next month; she's looking forward to it.
+    2. The neurology appointment she'd dreaded went okay; she's relieved.
+    3. Wants regular hours to herself; tried Saturday-morning coverage, didn't hold.
+    4. Recently started swimming and has been enjoying it.
+  (The appointment isn't deleted — it's updated to how it resolved and slides down;
+  it'll fade off later if it doesn't come back up. The new items lead; untouched ones
+  drift beneath them.)
+
+## Output format
+Return only JSON, no commentary, with exactly these fields:
+- "tone": a string.
+- "coping": an array of objects, each {"approach": string, "effect": string}.
+- "caregivingSituation": a string.
+- "threads": an array of plain strings — each thread is one short sentence. NOT
+  objects. Do not give threads an {approach, effect} shape; that shape is only for
+  coping.

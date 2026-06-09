@@ -37,7 +37,7 @@ router.post('/message', auth, async (req: Request, res: Response): Promise<void>
   try {
     const profile = await Profile.findOne({ userId: req.user!.id }).lean();
     const profileContext = profile ? renderProfileContext(profile) : '';
-    const toneInstruction = profile ? renderToneInstruction(profile.toneModifier) : '';
+    const toneInstruction = profile ? renderToneInstruction(profile.tone) : '';
     // For continue mode, re-inject the pinned prior-session recap on every turn
     // (not just at session start), so the thread persists through the session.
     const priorSummary = await getContinueRecap(req.user!.id, mode, continuedSummaryId);
@@ -75,18 +75,29 @@ router.post('/message', auth, async (req: Request, res: Response): Promise<void>
     res.flushHeaders();
 
     const FILTERED_FALLBACK = "I hear that something difficult is weighing on you. I'm here — take your time.";
+    const MAX_STREAM_ATTEMPTS = 2;
 
     let fullContent = '';
-    try {
-      for await (const token of streamTokens(contextMessages)) {
-        fullContent += token;
-        res.write(`data: ${JSON.stringify({ token })}\n\n`);
+    let contentFiltered = false;
+
+    // An empty stream is ambiguous: usually a transient gateway hiccup, sometimes
+    // a silently-filtered response. Retry once when nothing came through (safe —
+    // no tokens were sent to the client yet), and only fall back to the supportive
+    // message if it's still empty or was an explicit content filter.
+    for (let attempt = 1; attempt <= MAX_STREAM_ATTEMPTS; attempt++) {
+      try {
+        for await (const token of streamTokens(contextMessages)) {
+          fullContent += token;
+          res.write(`data: ${JSON.stringify({ token })}\n\n`);
+        }
+      } catch (streamErr) {
+        if ((streamErr as Error).message !== 'content_filter') throw streamErr;
+        contentFiltered = true;
       }
-    } catch (streamErr) {
-      if ((streamErr as Error).message !== 'content_filter') throw streamErr;
+      if (fullContent || contentFiltered) break;
+      console.warn(`[chat] empty stream on attempt ${attempt}/${MAX_STREAM_ATTEMPTS}, retrying`);
     }
 
-    // Gateway may silently return an empty stream instead of finish_reason:'content_filter'
     if (!fullContent) {
       fullContent = FILTERED_FALLBACK;
       res.write(`data: ${JSON.stringify({ token: fullContent })}\n\n`);

@@ -11,6 +11,7 @@ import { streamTokens, callOnce } from '../services/aiService';
 import { buildSystemPrompt } from '../services/promptService';
 import { renderProfileContext, renderToneInstruction } from '../services/profileService';
 import { getContinueRecap } from '../services/summaryService';
+import { reconcileProfile } from '../services/reconcileService';
 import config from '../config/chatbot.config';
 
 const router = Router();
@@ -78,18 +79,22 @@ router.post('/end', auth, async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
-    await Summary.create({
-      userId: req.user!.id,
-      sessionId,
-      summary: {
-        caregiverState:       typeof parsed.caregiverState === 'string' ? parsed.caregiverState : '',
-        whatCameUp:           Array.isArray(parsed.whatCameUp) ? parsed.whatCameUp : [],
-        selfCareCoping:       Array.isArray(parsed.selfCareCoping) ? parsed.selfCareCoping : [],
-        careSituationUpdates: typeof parsed.careSituationUpdates === 'string' ? parsed.careSituationUpdates : '',
-        interactionNotes:     typeof parsed.interactionNotes === 'string' ? parsed.interactionNotes : '',
-        sessionRecap,
-      },
-    });
+    const summaryContent = {
+      caregiverState:       typeof parsed.caregiverState === 'string' ? parsed.caregiverState : '',
+      whatCameUp:           Array.isArray(parsed.whatCameUp) ? parsed.whatCameUp as string[] : [],
+      selfCareCoping:       Array.isArray(parsed.selfCareCoping) ? parsed.selfCareCoping as { approach: string; effect: string }[] : [],
+      careSituationUpdates: typeof parsed.careSituationUpdates === 'string' ? parsed.careSituationUpdates : '',
+      interactionNotes:     typeof parsed.interactionNotes === 'string' ? parsed.interactionNotes : '',
+      sessionRecap,
+    };
+
+    await Summary.create({ userId: req.user!.id, sessionId, summary: summaryContent });
+
+    // Fold this session into the caregiver's living profile before responding,
+    // so the next session reads an up-to-date profile and the client's "tap to
+    // continue" affordance (gated on this request finishing) can't race the
+    // rewrite. Best-effort: a reconcile failure keeps the prior profile.
+    await reconcileProfile(req.user!.id, summaryContent);
 
     res.json({ success: true });
   } catch (err) {
@@ -114,7 +119,7 @@ router.post('/start', auth, async (req: Request, res: Response): Promise<void> =
   try {
     const profile = await Profile.findOne({ userId: req.user!.id }).lean();
     const profileContext = profile ? renderProfileContext(profile) : '';
-    const toneInstruction = profile ? renderToneInstruction(profile.toneModifier) : '';
+    const toneInstruction = profile ? renderToneInstruction(profile.tone) : '';
 
     const latestSummary = await Summary.findOne({ userId: req.user!.id })
       .sort({ createdAt: -1 })
