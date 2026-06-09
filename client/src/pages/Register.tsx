@@ -3,12 +3,10 @@ import type { FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import type { AxiosError } from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { useAgentConfig } from '../hooks/useAgentConfig';
 
 export default function Register() {
   const { register } = useAuth();
   const navigate = useNavigate();
-  const { agentName } = useAgentConfig();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -32,10 +30,6 @@ export default function Register() {
   return (
     <div className="auth-container">
       <div className="auth-card">
-        <div className="auth-agent">
-          <div className="agent-avatar">{agentName ? agentName[0] : '?'}</div>
-          <span className="agent-name">{agentName || ' '}</span>
-        </div>
         <h2>Create Account</h2>
         {error && <div className="error-message">{error}</div>}
         <form onSubmit={handleSubmit}>
