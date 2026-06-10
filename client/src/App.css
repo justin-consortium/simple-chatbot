@@ -381,23 +381,10 @@ body {
 .chat-username {
   font-size: var(--text-sm);
   color: var(--color-text-soft);
-}
-
-.btn-dev {
-  padding: 4px 10px;
-  background: transparent;
-  border: 1px dashed var(--color-border);
-  border-radius: var(--radius-sm);
-  font-size: var(--text-xs);
-  font-family: var(--font-body);
-  color: var(--color-text-soft);
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.btn-dev:hover {
-  background: var(--color-bg);
-  color: var(--color-text);
+  max-width: 32vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .btn-logout {
@@ -622,6 +609,11 @@ body {
   overflow-y: auto;
 }
 
+/* The welcome step is short — center it instead of stranding it at the top */
+.onboarding-container--centered {
+  align-items: center;
+}
+
 .onboarding-card {
   background: #fff;
   border-radius: 16px;
@@ -657,22 +649,26 @@ body {
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 1rem;
+  gap: 1.25rem;
+  padding-top: 3rem;
+  padding-bottom: 3rem;
 }
 
-.ob-intro-image {
-  width: min(50%, 220px);
-  aspect-ratio: 1;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 4px solid #D7E5DD;
+.ob-welcome-title {
+  font-family: "Fraunces", Georgia, serif;
+  font-weight: 500;
+  font-size: clamp(1.75rem, 6vw, 2.25rem);
+  letter-spacing: -0.015em;
+  line-height: 1.1;
+  color: var(--color-text);
+  text-wrap: balance;
 }
 
-.ob-greeting {
+.ob-welcome-text {
   font-size: 1rem;
-  color: #1a1a1a;
-  line-height: 1.65;
-  max-width: 38ch;
+  color: var(--color-text-soft);
+  line-height: 1.6;
+  max-width: 40ch;
 }
 
 .ob-intro-btn {
@@ -681,6 +677,87 @@ body {
   padding: 0.875rem 1rem;
   font-size: 1rem;
   margin-top: 0.5rem;
+}
+
+/* ── Choose your companion ── */
+
+.ob-pick {
+  text-align: center;
+}
+
+.ob-pick-title {
+  font-family: "Fraunces", Georgia, serif;
+  font-weight: 500;
+  font-size: clamp(1.5rem, 5vw, 1.875rem);
+  letter-spacing: -0.01em;
+  color: var(--color-text);
+  margin-bottom: 0.375rem;
+}
+
+.ob-pick-subtitle {
+  font-size: 0.9375rem;
+  color: var(--color-text-soft);
+  line-height: 1.5;
+  max-width: 34ch;
+  margin: 0 auto 1.75rem;
+}
+
+.ob-companion-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 1.5rem;
+}
+
+.ob-companion-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 1.25rem 0.75rem;
+  border: 1.5px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-surface);
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, transform 0.12s;
+}
+
+.ob-companion-card:hover {
+  border-color: #94BBA9;
+  background: #EEF5F1;
+}
+
+.ob-companion-card:active {
+  transform: scale(0.98);
+}
+
+.ob-companion-card.selected {
+  border-color: var(--color-primary);
+  border-width: 2px;
+  background: var(--color-primary-soft);
+}
+
+.ob-companion-card.selected::after {
+  content: "✓";
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 12px;
+  line-height: 20px;
+  text-align: center;
+}
+
+.ob-companion-img {
+  width: 100%;
+  max-width: 150px;
+  aspect-ratio: 1;
 }
 
 /* ── Question steps: speech bubble ── */
@@ -932,8 +1009,8 @@ body {
 }
 
 .sleep-avatar {
-  width: 88px;
-  height: 88px;
+  width: 135px;
+  height: 135px;
   border-radius: var(--radius-pill);
   object-fit: cover;
   border: 3px solid var(--color-primary-soft);
@@ -1016,21 +1093,6 @@ body {
   width: 100%;
 }
 
-.mode-skip-btn {
-  background: transparent;
-  border: none;
-  font-size: var(--text-sm);
-  color: var(--color-text-soft);
-  cursor: pointer;
-  padding: var(--space-1) var(--space-3);
-  font-family: var(--font-body);
-  transition: color 0.15s;
-  margin-top: calc(-1 * var(--space-2));
-}
-
-.mode-skip-btn:hover {
-  color: var(--color-text);
-}
 
 /* ── Shared animations ── */
 
@@ -1066,9 +1128,5 @@ body {
 @media (max-width: 639px) {
   .auth-card {
     padding: var(--space-6) var(--space-4);
-  }
-
-  .chat-username {
-    display: none;
   }
 }

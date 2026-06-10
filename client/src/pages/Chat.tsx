@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo, Children, isValidElement } from '
 import type { KeyboardEvent, ReactElement } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { AGENT_IMAGE } from '../config/agent';
+import { companionAvatar } from '../config/companions';
 import api from '../api/client';
 import ReactMarkdown from 'react-markdown';
 import type { Components } from 'react-markdown';
@@ -76,6 +76,7 @@ export default function Chat() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [displayName, setDisplayName] = useState('');
+  const [avatarId, setAvatarId] = useState('');
   const [sessionState, setSessionState] = useState<SessionState>('active');
   const [sessionMode, setSessionMode] = useState<SessionMode>(() => {
     const stored = sessionStorage.getItem('sessionMode');
@@ -185,8 +186,11 @@ export default function Chat() {
   // On mount: load profile display name, history, and prior summary in parallel.
   // Trigger first-session opener if the user has no history and no prior summaries.
   useEffect(() => {
-    api.get<{ displayName: string }>('/profile')
-      .then(res => setDisplayName(res.data.displayName))
+    api.get<{ displayName: string; avatarId: string }>('/profile')
+      .then(res => {
+        setDisplayName(res.data.displayName);
+        setAvatarId(res.data.avatarId);
+      })
       .catch(() => {});
 
     const init = async () => {
@@ -404,7 +408,7 @@ export default function Chat() {
           aria-label="Tap to continue"
         >
           <div className="sleep-content">
-            <img src={AGENT_IMAGE} alt="Companion" className="sleep-avatar" />
+            <img src={companionAvatar(avatarId, 'resting')} alt="Companion" className="sleep-avatar" />
             <p className="sleep-label">I'm here whenever you need me</p>
             {sessionEndReady ? (
               <p className="sleep-hint">Tap anywhere to continue</p>
@@ -418,7 +422,7 @@ export default function Chat() {
       {sessionState === 'menu' && (
         <div className="mode-menu-overlay" onClick={handleSkipMenu}>
           <div className="mode-menu-card" onClick={e => e.stopPropagation()}>
-            <img src={AGENT_IMAGE} alt="Companion" className="mode-menu-avatar" />
+            <img src={companionAvatar(avatarId, 'waving')} alt="Companion" className="mode-menu-avatar" />
             <h2 className="mode-menu-heading">{menuHeading}</h2>
             <div className="mode-menu-options">
               {MODE_OPTIONS
@@ -432,10 +436,10 @@ export default function Chat() {
                     {opt.label}
                   </button>
                 ))}
+              <button className="ob-option-chip" onClick={handleSkipMenu}>
+                I don't know — just chat
+              </button>
             </div>
-            <button className="mode-skip-btn" onClick={handleSkipMenu}>
-              I don't know — just chat
-            </button>
           </div>
         </div>
       )}
@@ -443,12 +447,12 @@ export default function Chat() {
       <header className="chat-header">
         <div className="chat-header-inner">
           <div className="chat-header-left">
-            <button onClick={endSession} className="btn-dev">
-              End session
+            <button onClick={endSession} className="btn-logout">
+              End conversation
             </button>
           </div>
           <div className="chat-header-center">
-            <img src={AGENT_IMAGE} alt="Companion" className="chat-agent-avatar" />
+            <img src={companionAvatar(avatarId, 'standing')} alt="Companion" className="chat-agent-avatar" />
           </div>
           <div className="chat-header-right">
             <span className="chat-username">{displayName || user?.username}</span>
@@ -458,9 +462,7 @@ export default function Chat() {
       </header>
 
       <main className="message-list">
-        {historyLoading ? (
-          <div className="chat-empty">Loading conversation…</div>
-        ) : messages.length === 0 ? (
+        {historyLoading ? null : messages.length === 0 ? (
           <div className="chat-empty">Send a message to start the conversation.</div>
         ) : (
           displayItems.map(item =>

@@ -7,6 +7,7 @@ import mongoose, { Document, Schema, Types } from 'mongoose';
 export interface IBaseline extends Document {
   userId: Types.ObjectId;
   displayName: string;
+  avatarId: string;
   supportStyle: string[];
   toneModifier: string;
   recharge: {
@@ -27,6 +28,7 @@ const baselineSchema = new Schema<IBaseline>(
   {
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     displayName: { type: String, required: true },
+    avatarId: { type: String, required: true },
     supportStyle: [{ type: String }],
     toneModifier: { type: String, default: '' },
     recharge: {

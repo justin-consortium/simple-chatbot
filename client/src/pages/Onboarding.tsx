@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/client';
-import { AGENT_IMAGE } from '../config/agent';
+import { COMPANIONS, companionAvatar } from '../config/companions';
 
 const TOTAL_STEPS = 5;
 
@@ -62,6 +62,7 @@ const STEP_QUESTIONS: Record<number, string> = {
 
 interface Answers {
   displayName: string;
+  avatarId: string;
   supportStyle: string[];
   toneModifier: string;
   rechargeCategories: string[];
@@ -76,8 +77,10 @@ export default function Onboarding() {
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [introStage, setIntroStage] = useState<'welcome' | 'avatar'>('welcome');
   const [answers, setAnswers] = useState<Answers>({
     displayName: '',
+    avatarId: '',
     supportStyle: [],
     toneModifier: '',
     rechargeCategories: [],
@@ -125,6 +128,7 @@ export default function Onboarding() {
       const years = parseInt(answers.caregivingYears || '0', 10);
       await api.post('/profile', {
         displayName: answers.displayName.trim(),
+        avatarId: answers.avatarId,
         supportStyle: answers.supportStyle,
         toneModifier: answers.toneModifier,
         recharge: {
@@ -144,22 +148,69 @@ export default function Onboarding() {
     }
   };
 
-  // ── Intro page (step 0) ──────────────────────────────────────────────────
+  // ── Intro: welcome, then companion picker (step 0) ───────────────────────
   if (step === 0) {
+    if (introStage === 'welcome') {
+      return (
+        <div className="onboarding-container onboarding-container--centered">
+          <div className="onboarding-card">
+            <div className="ob-body ob-intro">
+              <h1 className="ob-welcome-title">Welcome to CareCompanion</h1>
+              <p className="ob-welcome-text">
+                CareCompanion is an AI chatbot here to listen and support you.
+              </p>
+              <p className="ob-welcome-text">
+                Before you begin, you'll choose a companion and answer a few questions so it can support you best.
+              </p>
+              <button className="btn-primary ob-intro-btn" onClick={() => setIntroStage('avatar')}>
+                Let's get started
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="onboarding-container">
         <div className="onboarding-card">
-          <div className="ob-body ob-intro">
-            <img src={AGENT_IMAGE} alt="Companion" className="ob-intro-image" />
-            <p className="ob-greeting">
-              Welcome to the CareQOL Chat study!
-              <br /> I'm a companion here to listen and support you.
-              <br />
-              Before we start, I'd love to learn a little about you and how best to support you.
+          <div className="ob-body ob-pick">
+            <h2 className="ob-pick-title">Choose your companion</h2>
+            <p className="ob-pick-subtitle">
+              They'll be here with you each time you visit. Pick the one that feels right.
             </p>
-            <button className="btn-primary ob-intro-btn" onClick={() => setStep(1)}>
-              Let's get started
-            </button>
+            <div className="ob-companion-grid">
+              {COMPANIONS.map(c => {
+                const selected = answers.avatarId === c.id;
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    className={`ob-companion-card${selected ? ' selected' : ''}`}
+                    onClick={() => setAnswers(prev => ({ ...prev, avatarId: c.id }))}
+                    aria-pressed={selected}
+                  >
+                    <img
+                      src={companionAvatar(c.id, selected ? 'waving' : 'standing')}
+                      alt={c.name}
+                      className="ob-companion-img"
+                    />
+                  </button>
+                );
+              })}
+            </div>
+            <div className="ob-nav">
+              <button className="ob-btn-back" onClick={() => setIntroStage('welcome')}>
+                Back
+              </button>
+              <button
+                className="btn-primary ob-btn-next"
+                onClick={() => setStep(1)}
+                disabled={!answers.avatarId}
+              >
+                Continue
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -177,7 +228,7 @@ export default function Onboarding() {
         <div className="ob-body">
           <div className="ob-bubble-row">
             <div className="ob-bubble-agent">
-              <img src={AGENT_IMAGE} alt="Companion" className="ob-bubble-avatar" />
+              <img src={companionAvatar(answers.avatarId, 'curious')} alt="Companion" className="ob-bubble-avatar" />
             </div>
             <div className="ob-speech-bubble">{STEP_QUESTIONS[step]}</div>
           </div>

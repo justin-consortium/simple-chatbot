@@ -22,8 +22,12 @@ router.get('/', auth, async (req: Request, res: Response): Promise<void> => {
   }
 });
 
+// Keep in sync with the client companion ids (client/src/config/companions.ts).
+const VALID_AVATAR_IDS = ['penguin', 'robot', 'star', 'gem'];
+
 interface ProfileBody {
   displayName?: string;
+  avatarId?: string;
   supportStyle?: string[];
   toneModifier?: string;
   recharge?: { categories?: string[]; other?: string };
@@ -45,6 +49,11 @@ router.post('/', auth, async (req: Request, res: Response): Promise<void> => {
     return;
   }
 
+  if (!body.avatarId || !VALID_AVATAR_IDS.includes(body.avatarId)) {
+    res.status(400).json({ error: 'A valid avatarId is required' });
+    return;
+  }
+
   try {
     const existing = await Baseline.findOne({ userId: req.user!.id }).lean();
     if (existing) {
@@ -55,6 +64,7 @@ router.post('/', auth, async (req: Request, res: Response): Promise<void> => {
     const baseline = await Baseline.create({
       userId: req.user!.id,
       displayName: body.displayName.trim(),
+      avatarId: body.avatarId,
       supportStyle: body.supportStyle ?? [],
       toneModifier: body.toneModifier ?? '',
       recharge: {
@@ -71,6 +81,7 @@ router.post('/', auth, async (req: Request, res: Response): Promise<void> => {
 
     const profile = await Profile.create({
       userId: req.user!.id,
+      avatarId: baseline.avatarId,
       ...seedProfileFromBaseline(baseline),
     });
 

@@ -31,7 +31,7 @@ export default function Login() {
     <div className="login-page">
       <main className="login-content">
         <header className="login-hero">
-          <h1 className="login-hero-title">CareQOL Chat Study</h1>
+          <h1 className="login-hero-title">CareCompanion</h1>
           <p className="login-hero-subtitle">Caring for the Caregiver</p>
         </header>
 
