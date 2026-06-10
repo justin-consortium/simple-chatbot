@@ -3,6 +3,7 @@ import type { KeyboardEvent, ReactElement } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { companionAvatar } from '../config/companions';
+import { randomId } from '../lib/uuid';
 import api from '../api/client';
 import ReactMarkdown from 'react-markdown';
 import type { Components } from 'react-markdown';
@@ -86,7 +87,7 @@ export default function Chat() {
   const [sessionId, setSessionId] = useState<string>(() => {
     const stored = sessionStorage.getItem('sessionId');
     if (stored) return stored;
-    const newId = crypto.randomUUID();
+    const newId = randomId();
     sessionStorage.setItem('sessionId', newId);
     return newId;
   });
@@ -126,6 +127,18 @@ export default function Chat() {
     const openerMsg: ChatMessage = { _id: 'opener', role: 'assistant', content: '', streaming: true, sessionId: sid };
     setMessages(prev => [...prev, openerMsg]);
 
+    // Turn the streaming opener into a visible error bubble rather than leaving
+    // a blank screen when the session can't be started.
+    const failOpener = () => {
+      setMessages(prev =>
+        prev.map(m =>
+          m._id === 'opener'
+            ? { ...m, content: "I'm having trouble connecting right now. Please refresh to try again.", streaming: false, error: true }
+            : m
+        )
+      );
+    };
+
     try {
       const response = await fetch('/api/session/start', {
         method: 'POST',
@@ -135,7 +148,7 @@ export default function Chat() {
       });
 
       if (!response.ok) {
-        setMessages([]);
+        failOpener();
         return;
       }
 
@@ -173,7 +186,7 @@ export default function Chat() {
         }
       }
     } catch {
-      setMessages([]);
+      failOpener();
     } finally {
       setMessages(prev =>
         prev.map(m =>
@@ -278,7 +291,7 @@ export default function Chat() {
   };
 
   const handleModeSelect = (mode: SessionMode) => {
-    const newId = crypto.randomUUID();
+    const newId = randomId();
     sessionStorage.setItem('sessionId', newId);
     sessionStorage.setItem('sessionMode', mode);
     sessionStorage.removeItem('pendingMenu');
@@ -297,7 +310,7 @@ export default function Chat() {
   };
 
   const handleSkipMenu = () => {
-    const newId = crypto.randomUUID();
+    const newId = randomId();
     sessionStorage.setItem('sessionId', newId);
     sessionStorage.setItem('sessionMode', 'free');
     sessionStorage.removeItem('pendingMenu');
