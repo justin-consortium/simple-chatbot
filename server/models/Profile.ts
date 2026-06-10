@@ -16,6 +16,7 @@ export interface CopingEntry {
 export interface IProfile extends Document {
   userId: Types.ObjectId;
   displayName: string;          // immutable; frozen copy of baseline.displayName
+  avatarId: string;             // immutable; the companion character chosen at onboarding
   tone: string;                 // living; seeded from toneModifier, evolves from interactionNotes
   coping: CopingEntry[];        // living; seeded from recharge, evolves from selfCareCoping
   caregivingSituation: string;  // living; seeded from caregiverProfile, evolves from careSituationUpdates
@@ -30,6 +31,7 @@ const profileSchema = new Schema<IProfile>(
     // Frozen at seed time. Enforced immutable as a backstop; reconcile never
     // includes it in its write payload anyway.
     displayName: { type: String, required: true, immutable: true },
+    avatarId: { type: String, required: true, immutable: true },
     tone: { type: String, default: '' },
     coping: [{ approach: { type: String }, effect: { type: String } }],
     caregivingSituation: { type: String, default: '' },
