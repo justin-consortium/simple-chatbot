@@ -1093,21 +1093,6 @@ body {
   width: 100%;
 }
 
-.mode-skip-btn {
-  background: transparent;
-  border: none;
-  font-size: var(--text-sm);
-  color: var(--color-text-soft);
-  cursor: pointer;
-  padding: var(--space-1) var(--space-3);
-  font-family: var(--font-body);
-  transition: color 0.15s;
-  margin-top: calc(-1 * var(--space-2));
-}
-
-.mode-skip-btn:hover {
-  color: var(--color-text);
-}
 
 /* ── Shared animations ── */
 

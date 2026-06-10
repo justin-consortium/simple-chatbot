@@ -436,10 +436,10 @@ export default function Chat() {
                     {opt.label}
                   </button>
                 ))}
+              <button className="ob-option-chip" onClick={handleSkipMenu}>
+                I don't know — just chat
+              </button>
             </div>
-            <button className="mode-skip-btn" onClick={handleSkipMenu}>
-              I don't know — just chat
-            </button>
           </div>
         </div>
       )}
