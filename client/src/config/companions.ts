@@ -28,7 +28,7 @@ export function getCompanion(id: string | undefined): Companion {
 }
 
 // Resolves a character + state to its image path:
-//   /assets/companions/<id>/<state>.svg
+//   /assets/companions/<id>/<state>.png
 //
 // The four placeholder files per character are currently identical copies; drop
 // in the real per-state art at these same paths to replace them, no code change.
@@ -37,5 +37,5 @@ export function companionAvatar(
   state: CompanionState = 'standing'
 ): string {
   const companion = getCompanion(id);
-  return `/assets/companions/${companion.id}/${state}.svg`;
+  return `/assets/companions/${companion.id}/${state}.png`;
 }
