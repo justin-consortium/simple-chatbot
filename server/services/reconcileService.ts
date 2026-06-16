@@ -144,5 +144,9 @@ export async function reconcileProfile(
   profile.coping = next.coping;
   profile.caregivingSituation = next.caregivingSituation;
   profile.threads = next.threads;
-  await profile.save();
+  // Validate only the fields reconcile actually modified. A full-document
+  // validation would reject legacy profiles created before a later-added
+  // required field (e.g. avatarId), even though reconcile never touches it —
+  // silently freezing the living profile for every pre-existing user.
+  await profile.save({ validateModifiedOnly: true });
 }
