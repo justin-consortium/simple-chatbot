@@ -37,7 +37,7 @@ interface SessionDivider {
 
 type MessageItem = ChatMessage | SessionDivider;
 
-type SessionState = 'active' | 'sleeping' | 'menu';
+type SessionState = 'active' | 'sleeping' | 'menu' | 'welcome';
 type SessionMode = 'vent' | 'reflect' | 'solve' | 'free' | 'continue';
 
 const MENU_HEADINGS = [
@@ -69,6 +69,40 @@ const MODE_OPTIONS: { mode: SessionMode; label: string; requiresSummary?: boolea
   { mode: 'solve',    label: 'Figure out what to do' },
 ];
 
+// How long the app can sit inactive — idle in the foreground, backgrounded, or
+// brought back later — before the in-progress conversation is automatically
+// wound down (same effect as pressing "End conversation"). Adjust to taste.
+const INACTIVITY_LIMIT_MS = 60 * 1000; // 60 seconds (TEMP for testing — restore to 60 * 60 * 1000)
+
+// Durable session keys live in localStorage so they survive a force-quit (unlike
+// per-tab sessionStorage), letting the app tell "resume / wind down / welcome"
+// apart on reopen.
+const ACTIVE_KEY = 'sessionActive';     // an active conversation is in progress
+const LAST_ACTIVE_KEY = 'lastActiveAt'; // timestamp (ms) of the last user activity
+// sessionStorage flag: survives a refresh but not a tab close / force-quit, so its
+// absence at load distinguishes a cold start from a same-process refresh.
+const TAB_ALIVE_KEY = 'tabAlive';
+
+// Records "the user just did something". Used to measure inactivity.
+function markActive(): void {
+  localStorage.setItem(LAST_ACTIVE_KEY, String(Date.now()));
+}
+
+// True when the last activity was longer ago than the inactivity limit. False
+// when we've never recorded activity, so a brand-new visitor isn't timed out.
+function isIdle(): boolean {
+  const last = Number(localStorage.getItem(LAST_ACTIVE_KEY) || 0);
+  return last > 0 && Date.now() - last > INACTIVITY_LIMIT_MS;
+}
+
+// Evaluated once per real page load (fresh tab / force-quit reopen / in-tab
+// refresh), before React mounts — so StrictMode's double-invoked mount effect
+// can't set the flag on its first pass and make the second pass look like a
+// refresh. sessionStorage is empty on a fresh tab or force-quit reopen but
+// survives an in-tab refresh.
+const COLD_START = !sessionStorage.getItem(TAB_ALIVE_KEY);
+sessionStorage.setItem(TAB_ALIVE_KEY, '1');
+
 export default function Chat() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -80,15 +114,15 @@ export default function Chat() {
   const [avatarId, setAvatarId] = useState('');
   const [sessionState, setSessionState] = useState<SessionState>('active');
   const [sessionMode, setSessionMode] = useState<SessionMode>(() => {
-    const stored = sessionStorage.getItem('sessionMode');
+    const stored = localStorage.getItem('sessionMode');
     const valid: SessionMode[] = ['vent', 'reflect', 'solve', 'free', 'continue'];
     return stored && valid.includes(stored as SessionMode) ? (stored as SessionMode) : 'free';
   });
   const [sessionId, setSessionId] = useState<string>(() => {
-    const stored = sessionStorage.getItem('sessionId');
+    const stored = localStorage.getItem('sessionId');
     if (stored) return stored;
     const newId = randomId();
-    sessionStorage.setItem('sessionId', newId);
+    localStorage.setItem('sessionId', newId);
     return newId;
   });
   const [hasPriorSummary, setHasPriorSummary] = useState(false);
@@ -97,7 +131,7 @@ export default function Chat() {
   // The summary this session is pinned to continue, persisted so a mid-session
   // reload keeps referencing the same one. Null for non-continue sessions.
   const [continuedSummaryId, setContinuedSummaryId] = useState<string | null>(
-    () => sessionStorage.getItem('continuedSummaryId')
+    () => localStorage.getItem('continuedSummaryId')
   );
   const [menuHeading, setMenuHeading] = useState(MENU_HEADINGS[0]);
   const [sessionEndReady, setSessionEndReady] = useState(false);
@@ -105,6 +139,9 @@ export default function Chat() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const sessionEndRef = useRef<Promise<void> | null>(null);
+  // Guards the one-time mount bootstrap so StrictMode's double-invoked effect
+  // (dev only) doesn't run it twice. Resets on a real unmount/remount.
+  const didInit = useRef(false);
 
   // Inserts a single "New conversation" divider where the current session begins,
   // separating it from the earlier history. Older sessions in the history flow
@@ -124,6 +161,8 @@ export default function Chat() {
 
   // Streams the agent's opening message for a new session.
   const startSession = async (mode: string, sid: string, continuedId?: string | null) => {
+    localStorage.setItem(ACTIVE_KEY, '1');
+    markActive();
     const openerMsg: ChatMessage = { _id: 'opener', role: 'assistant', content: '', streaming: true, sessionId: sid };
     setMessages(prev => [...prev, openerMsg]);
 
@@ -196,9 +235,41 @@ export default function Chat() {
     }
   };
 
-  // On mount: load profile display name, history, and prior summary in parallel.
-  // Trigger first-session opener if the user has no history and no prior summaries.
+  // Runs the session-end summarize + reconcile for a given session and remembers
+  // the promise so the menu can wait for it. Flips the persisted flags to
+  // "between sessions" so a refresh restores the menu rather than the session.
+  const runSessionEnd = (sid: string): void => {
+    localStorage.removeItem('sessionId');
+    localStorage.removeItem('sessionMode');
+    localStorage.removeItem(ACTIVE_KEY);
+    // Mark that we're between sessions, so a refresh restores the mode menu
+    // rather than silently dropping into a new conversation.
+    localStorage.setItem('pendingMenu', '1');
+    sessionEndRef.current = fetch('/api/session/end', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId: sid }),
+      credentials: 'include',
+    })
+      .then(() => {})
+      .catch(err => console.error('[endSession]', err))
+      .finally(() => setSessionEndReady(true));
+  };
+
+  const endSession = (): void => {
+    setSessionEndReady(false);
+    setPreparingLabel(PREPARING_LABELS[Math.floor(Math.random() * PREPARING_LABELS.length)]);
+    runSessionEnd(sessionId);
+    setSessionState('sleeping');
+  };
+
+  // On mount: load profile display name, history, and prior summary in parallel,
+  // then decide what to show. A cold start (force-quit reopen or fresh tab) is
+  // distinguished from a same-process refresh by the sessionStorage tabAlive flag.
   useEffect(() => {
+    if (didInit.current) return;
+    didInit.current = true;
+
     api.get<{ displayName: string; avatarId: string }>('/profile')
       .then(res => {
         setDisplayName(res.data.displayName);
@@ -220,17 +291,55 @@ export default function Chat() {
       setLatestSummaryId(latest?._id ?? null);
       setHistoryLoading(false);
 
+      const hasActive = localStorage.getItem(ACTIVE_KEY) !== null;
+      const pendingMenu = localStorage.getItem('pendingMenu') !== null;
+      const returning = hasActive || pendingMenu || msgs.length > 0 || latest !== null;
+
+      if (COLD_START) {
+        // Brand-new visitor with nothing to return to: begin the first session
+        // directly (the agent streams its first-time opener — no welcome screen).
+        if (!returning) {
+          void startSession('free', sessionId);
+          return;
+        }
+        // Returning user reopening the app. If a conversation was still open when
+        // they quit, it never got an explicit end — summarize it now so the menu's
+        // "continue" option works. The welcome screen covers the wait (its tap is
+        // gated on the summarize finishing, same as the resting screen).
+        if (hasActive) {
+          setSessionEndReady(false);
+          setPreparingLabel(PREPARING_LABELS[Math.floor(Math.random() * PREPARING_LABELS.length)]);
+          runSessionEnd(localStorage.getItem('sessionId') ?? sessionId);
+        } else {
+          setSessionEndReady(true);
+        }
+        setSessionState('welcome');
+        return;
+      }
+
+      // Same-process refresh from here on.
       // Refreshed while between sessions (paused/sleeping or menu): restore the
-      // mode menu rather than dropping into a silent new conversation. The
-      // summary fetched above already populates the "continue" option.
-      if (sessionStorage.getItem('pendingMenu')) {
+      // mode menu rather than dropping into a silent new conversation.
+      if (pendingMenu) {
         setMenuHeading(MENU_HEADINGS[Math.floor(Math.random() * MENU_HEADINGS.length)]);
         setSessionState('menu');
         return;
       }
 
-      if (latest === null && msgs.length === 0) {
+      if (hasActive) {
+        // Tab stayed open: wind down if it sat idle past the limit, otherwise
+        // resume the conversation in place (same sessionId keeps the divider right).
+        if (isIdle()) endSession();
+        return;
+      }
+
+      // No active session and not between sessions: first-ever start if truly
+      // empty, otherwise fall back to the menu rather than a silent new session.
+      if (!returning) {
         void startSession('free', sessionId);
+      } else {
+        setMenuHeading(MENU_HEADINGS[Math.floor(Math.random() * MENU_HEADINGS.length)]);
+        setSessionState('menu');
       }
     };
 
@@ -250,26 +359,26 @@ export default function Chat() {
     }
   }, [input]);
 
-  const endSession = () => {
-    sessionStorage.removeItem('sessionId');
-    sessionStorage.removeItem('sessionMode');
-    // Mark that we're between sessions, so a refresh restores the mode menu
-    // rather than silently dropping into a new conversation.
-    sessionStorage.setItem('pendingMenu', '1');
-    setSessionEndReady(false);
-    setPreparingLabel(PREPARING_LABELS[Math.floor(Math.random() * PREPARING_LABELS.length)]);
-    sessionEndRef.current = fetch('/api/session/end', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionId }),
-      credentials: 'include',
-    })
-      .then(() => {})
-      .catch(err => console.error('[endSession]', err))
-      .finally(() => setSessionEndReady(true));
-
-    setSessionState('sleeping');
-  };
+  // Wind the conversation down after a stretch of inactivity — whether the tab
+  // sat idle in the foreground or was backgrounded and brought back. Background
+  // timers are throttled/frozen, so we also re-check whenever the page becomes
+  // visible again rather than trusting the interval alone. Active sessions only.
+  useEffect(() => {
+    if (sessionState !== 'active') return;
+    // Each keystroke calls markActive(), so active typing keeps resetting the
+    // clock. An abandoned half-typed draft (no keystrokes for the whole window)
+    // still winds down — the draft text is kept in state, so it's there when the
+    // user returns and starts again.
+    const check = (): void => { if (isIdle()) endSession(); };
+    const onVisible = (): void => { if (document.visibilityState === 'visible') check(); };
+    const timer = window.setInterval(check, 60_000);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionState, sessionId]);
 
   const handleWake = async () => {
     // Wait for the session-end summarization to finish before fetching the
@@ -292,9 +401,9 @@ export default function Chat() {
 
   const handleModeSelect = (mode: SessionMode) => {
     const newId = randomId();
-    sessionStorage.setItem('sessionId', newId);
-    sessionStorage.setItem('sessionMode', mode);
-    sessionStorage.removeItem('pendingMenu');
+    localStorage.setItem('sessionId', newId);
+    localStorage.setItem('sessionMode', mode);
+    localStorage.removeItem('pendingMenu');
     setSessionId(newId);
     setSessionMode(mode);
     setSessionState('active');
@@ -303,22 +412,22 @@ export default function Chat() {
     // even if another session ends and becomes "latest" in the meantime.
     const pinned = mode === 'continue' ? latestSummaryId : null;
     setContinuedSummaryId(pinned);
-    if (pinned) sessionStorage.setItem('continuedSummaryId', pinned);
-    else sessionStorage.removeItem('continuedSummaryId');
+    if (pinned) localStorage.setItem('continuedSummaryId', pinned);
+    else localStorage.removeItem('continuedSummaryId');
 
     void startSession(mode, newId, pinned);
   };
 
   const handleSkipMenu = () => {
     const newId = randomId();
-    sessionStorage.setItem('sessionId', newId);
-    sessionStorage.setItem('sessionMode', 'free');
-    sessionStorage.removeItem('pendingMenu');
+    localStorage.setItem('sessionId', newId);
+    localStorage.setItem('sessionMode', 'free');
+    localStorage.removeItem('pendingMenu');
     setSessionId(newId);
     setSessionMode('free');
     setSessionState('active');
     setContinuedSummaryId(null);
-    sessionStorage.removeItem('continuedSummaryId');
+    localStorage.removeItem('continuedSummaryId');
     void startSession('free', newId, null);
   };
 
@@ -326,6 +435,7 @@ export default function Chat() {
     const content = input.trim();
     if (!content || isStreaming) return;
 
+    markActive();
     setInput('');
     setIsStreaming(true);
 
@@ -408,6 +518,13 @@ export default function Chat() {
     navigate('/login');
   };
 
+  // Hold back the chat shell until init has decided what to show (it flips
+  // historyLoading off and sets the right state in the same batch). Otherwise a
+  // cold-start welcome flashes the chat interface for a moment beforehand.
+  if (historyLoading) {
+    return <div className="chat-layout" aria-busy="true" />;
+  }
+
   return (
     <div className="chat-layout">
 
@@ -421,10 +538,33 @@ export default function Chat() {
           aria-label="Tap to continue"
         >
           <div className="sleep-content">
-            <img src={companionAvatar(avatarId, 'resting')} alt="Companion" className="sleep-avatar" />
+            {/* curious (busy/alert) while the summary is being prepared, resting once it's done */}
+            <img src={companionAvatar(avatarId, sessionEndReady ? 'resting' : 'curious')} alt="Companion" className="sleep-avatar" />
             <p className="sleep-label">I'm here whenever you need me</p>
             {sessionEndReady ? (
               <p className="sleep-hint">Tap anywhere to continue</p>
+            ) : (
+              <p className="sleep-preparing">{preparingLabel}</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {sessionState === 'welcome' && (
+        <div
+          className="sleep-overlay"
+          onClick={sessionEndReady ? () => void handleWake() : undefined}
+          onKeyDown={sessionEndReady ? e => { if (e.key === 'Enter' || e.key === ' ') void handleWake(); } : undefined}
+          role="button"
+          tabIndex={sessionEndReady ? 0 : -1}
+          aria-label="Tap to start"
+        >
+          <div className="sleep-content">
+            {/* curious (busy/alert) while the prior session is being summarized, waving once it's ready */}
+            <img src={companionAvatar(avatarId, sessionEndReady ? 'waving' : 'curious')} alt="Companion" className="sleep-avatar" />
+            <p className="sleep-label">Welcome back</p>
+            {sessionEndReady ? (
+              <p className="sleep-hint">Tap anywhere to start</p>
             ) : (
               <p className="sleep-preparing">{preparingLabel}</p>
             )}
@@ -507,7 +647,7 @@ export default function Chat() {
           <textarea
             ref={textareaRef}
             value={input}
-            onChange={e => setInput(e.target.value)}
+            onChange={e => { markActive(); setInput(e.target.value); }}
             onKeyDown={handleKeyDown}
             placeholder="What's on your mind?"
             rows={1}

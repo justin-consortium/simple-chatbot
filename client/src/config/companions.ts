@@ -1,9 +1,10 @@
 // The four companion characters the user picks from during onboarding and then
 // keeps. Each character has four expressive states mapped to UX moments:
 //   waving   → welcome, the moment after selection, the chat opener
-//   curious  → onboarding question bubbles, "listening / awaiting your reply"
+//   curious  → onboarding question bubbles, "listening / awaiting your reply",
+//              and the busy "preparing" beat while a summary is generating
 //   standing → chat header (small), general idle
-//   resting  → the sleep / end-of-conversation screen
+//   resting  → the sleep / end-of-conversation screen (once summary is ready)
 //
 // Keep `id`s in sync with VALID_AVATAR_IDS in server/routes/profile.ts.
 
