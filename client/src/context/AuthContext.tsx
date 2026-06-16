@@ -16,6 +16,15 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+// Conversation/continuity state that Chat persists in localStorage. Cleared
+// whenever the signed-in identity changes, so one user's in-progress session
+// never bleeds into another account's (or a brand-new user's first) session.
+// Keep in sync with the keys used in pages/Chat.tsx.
+const SESSION_KEYS = ['sessionId', 'sessionMode', 'continuedSummaryId', 'pendingMenu', 'sessionActive', 'lastActiveAt'];
+function clearSessionState(): void {
+  SESSION_KEYS.forEach(k => localStorage.removeItem(k));
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -29,16 +38,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (username: string, password: string): Promise<void> => {
     const res = await api.post<User>('/auth/login', { username, password });
+    clearSessionState();
     setUser(res.data);
   };
 
   const register = async (username: string, password: string): Promise<void> => {
     const res = await api.post<User>('/auth/register', { username, password });
+    clearSessionState();
     setUser(res.data);
   };
 
   const logout = async (): Promise<void> => {
     await api.post('/auth/logout');
+    clearSessionState();
     setUser(null);
   };
 
