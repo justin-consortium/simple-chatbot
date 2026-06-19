@@ -38,6 +38,7 @@ displayName: String          // required
 supportStyle: String[]       // support-style codes
 toneModifier: String         // default ''  (direct | professional | humorous)
 recharge: { categories: String[], other: String }   // other default ''
+careRecipientCondition: String        // TBI | ADRD | HD
 caregiverProfile: {
   relationship: String,              // default ''
   caregivingDurationMonths: Number,  // default 0
@@ -64,6 +65,7 @@ what makes the write-once invariant real rather than aspirational.
 ```
 userId: ObjectId -> User     // required, unique
 displayName: String          // immutable; frozen copy of baseline.displayName
+careRecipientCondition: String  // stable; TBI | ADRD | HD; set once at onboarding, never written by reconcile; feeds {{CONDITION}}
 tone: String                 // living
 coping: [{ approach: String, effect: String }]   // living
 caregivingSituation: String  // living
@@ -75,6 +77,7 @@ updatedAt: Date
 | Field | Kind | Injected? | Written by reconcile? |
 |---|---|---|---|
 | `displayName` | fixed (immutable copy) | yes — profile block | no |
+| `careRecipientCondition` | stable (set at onboarding) | yes — via `{{CONDITION}}` in MISSION | no |
 | `tone` | living (seeded from `toneModifier`) | yes — via `{{TONE}}` under YOUR MANNER | yes — from `interactionNotes` |
 | `coping` | living (seeded from `recharge`) | yes — profile block | yes — from `selfCareCoping` |
 | `caregivingSituation` | living (seeded from `caregiverProfile`) | yes — profile block | yes — from `careSituationUpdates` |
@@ -109,6 +112,7 @@ runs once.
 | `profile` field | Seeded from | Derivation |
 |---|---|---|
 | `displayName` | `baseline.displayName` | copy (then frozen) |
+| `careRecipientCondition` | `baseline.careRecipientCondition` | copy (then stable); the code->phrase mapping for `{{CONDITION}}` happens at render, not seed |
 | `tone` | `baseline.toneModifier` | label -> short free-text core preference (e.g. "direct" -> "direct and to the point"); empty modifier -> empty `tone` (warm still applies). Stored as the bare preference; the directive framing ("They've asked you to adjust how you come across: …") is added at render, not stored — see §8. |
 | `coping` | `baseline.recharge` | category codes -> labels as `{approach, effect: ""}`; append `recharge.other` as an entry |
 | `caregivingSituation` | `baseline.caregiverProfile` | one free-text sentence from relationship + duration + careType labels |
@@ -126,6 +130,7 @@ Reconcile consumes (writes the mutable subset of profile):
   interactionNotes     -> tone
 
 Reconcile does NOT write:    displayName (immutable)
+                             careRecipientCondition (stable onboarding fact)
 Reconcile does NOT consume:
   caregiverState  -> safety path (separate spec)
   sessionRecap    -> opener only
@@ -243,9 +248,9 @@ Validate code-side in all tiers before saving:
 - Shape: `threads` is a string array; each `coping` entry has `approach` + `effect`;
   `tone` and `caregivingSituation` are strings.
 - Never accept writes to anything outside `{tone, coping, caregivingSituation, threads}`
-  — `displayName` and all `baseline` fields are out of scope.
+  — `displayName`, `careRecipientCondition`, and all `baseline` fields are out of scope.
 - On validation failure, keep the prior profile rather than persist a malformed update.
-- `displayName` is additionally protected by Mongoose `immutable: true` as a backstop.
+- `displayName` and `careRecipientCondition` are additionally protected by Mongoose `immutable: true` as a backstop.
 
 ---
 

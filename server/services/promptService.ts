@@ -26,6 +26,7 @@ export function buildSystemPrompt(
   debug: boolean = false,
   priorSummary: string = '',
   toneInstruction: string = '',
+  conditionPhrase: string = 'a significant health condition',
 ): string {
   const resolvedMode = modeModules[mode] ? mode : 'free';
   let modeText = modeModules[resolvedMode];
@@ -39,7 +40,8 @@ export function buildSystemPrompt(
   let prompt = background
     .replace('{{THIS_CONVERSATION}}', modeText)
     .replace('{{PROFILE_CONTEXT}}', profileContext)
-    .replace('{{TONE}}', toneInstruction);
+    .replace('{{TONE}}', toneInstruction)
+    .replace('{{CONDITION}}', conditionPhrase);
 
   if (debug) {
     prompt += DEBUG_FOOTER(resolvedMode);

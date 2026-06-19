@@ -9,17 +9,15 @@ import Profile from '../models/Profile';
 import auth from '../middleware/auth';
 import { streamTokens, callOnce } from '../services/aiService';
 import { buildSystemPrompt } from '../services/promptService';
-import { renderProfileContext, renderToneInstruction } from '../services/profileService';
+import { renderProfileContext, renderToneInstruction, renderConditionPhrase } from '../services/profileService';
 import { getContinueRecap } from '../services/summaryService';
 import { reconcileProfile } from '../services/reconcileService';
-import config from '../config/chatbot.config';
 
 const router = Router();
 
 const promptsDir = path.join(__dirname, '../prompts');
 const summarizePrompt = fs.readFileSync(path.join(promptsDir, 'summarize-prompt.txt'), 'utf-8').trim();
-const openerFirst     = fs.readFileSync(path.join(promptsDir, 'opener_first.txt'), 'utf-8').trim()
-  .replace('{{AGENT_NAME}}', config.name);
+const openerFirst     = fs.readFileSync(path.join(promptsDir, 'opener_first.txt'), 'utf-8').trim();
 const openerReturning = fs.readFileSync(path.join(promptsDir, 'opener_returning.txt'), 'utf-8').trim();
 
 // GET /api/session/latest-summary
@@ -58,8 +56,13 @@ router.post('/end', auth, async (req: Request, res: Response): Promise<void> => 
       .map(m => `${m.role === 'user' ? 'Caregiver' : 'Companion'}: ${m.content}`)
       .join('\n\n');
 
+    // Frame the summarizer for this caregiver's care recipient condition, from the
+    // same source as {{CONDITION}} in the system prompt — no hardcoded condition.
+    const profile = await Profile.findOne({ userId: req.user!.id }).lean();
+    const conditionPhrase = renderConditionPhrase(profile?.careRecipientCondition ?? '');
+
     const summarizeMessages: ChatCompletionMessageParam[] = [
-      { role: 'system', content: summarizePrompt },
+      { role: 'system', content: summarizePrompt.replace('{{CONDITION}}', conditionPhrase) },
       { role: 'user',   content: transcript },
     ];
 
@@ -120,6 +123,7 @@ router.post('/start', auth, async (req: Request, res: Response): Promise<void> =
     const profile = await Profile.findOne({ userId: req.user!.id }).lean();
     const profileContext = profile ? renderProfileContext(profile) : '';
     const toneInstruction = profile ? renderToneInstruction(profile.tone) : '';
+    const conditionPhrase = renderConditionPhrase(profile?.careRecipientCondition ?? '');
 
     const latestSummary = await Summary.findOne({ userId: req.user!.id })
       .sort({ createdAt: -1 })
@@ -130,7 +134,7 @@ router.post('/start', auth, async (req: Request, res: Response): Promise<void> =
     // (falls back to latest). Scoped by userId inside the helper.
     const priorSummary = await getContinueRecap(req.user!.id, mode, continuedSummaryId);
 
-    const systemPrompt = buildSystemPrompt(mode ?? 'free', profileContext, false, priorSummary, toneInstruction);
+    const systemPrompt = buildSystemPrompt(mode ?? 'free', profileContext, false, priorSummary, toneInstruction, conditionPhrase);
     const openerInstruction = isFirstSession ? openerFirst : openerReturning;
 
     const messages: ChatCompletionMessageParam[] = [

@@ -5,7 +5,7 @@ import Message from '../models/Message';
 import auth from '../middleware/auth';
 import { streamTokens } from '../services/aiService';
 import { buildSystemPrompt } from '../services/promptService';
-import { renderProfileContext, renderToneInstruction } from '../services/profileService';
+import { renderProfileContext, renderToneInstruction, renderConditionPhrase } from '../services/profileService';
 import { getContinueRecap } from '../services/summaryService';
 import Profile from '../models/Profile';
 
@@ -38,6 +38,7 @@ router.post('/message', auth, async (req: Request, res: Response): Promise<void>
     const profile = await Profile.findOne({ userId: req.user!.id }).lean();
     const profileContext = profile ? renderProfileContext(profile) : '';
     const toneInstruction = profile ? renderToneInstruction(profile.tone) : '';
+    const conditionPhrase = renderConditionPhrase(profile?.careRecipientCondition ?? '');
     // For continue mode, re-inject the pinned prior-session recap on every turn
     // (not just at session start), so the thread persists through the session.
     const priorSummary = await getContinueRecap(req.user!.id, mode, continuedSummaryId);
@@ -57,7 +58,7 @@ router.post('/message', auth, async (req: Request, res: Response): Promise<void>
       .lean();
 
     const contextMessages: ChatCompletionMessageParam[] = [
-      { role: 'system', content: buildSystemPrompt(mode ?? 'free', profileContext, false, priorSummary, toneInstruction) },
+      { role: 'system', content: buildSystemPrompt(mode ?? 'free', profileContext, false, priorSummary, toneInstruction, conditionPhrase) },
       ...history.map(m => ({
         role: m.role as 'user' | 'assistant',
         content: m.content,

@@ -25,12 +25,17 @@ router.get('/', auth, async (req: Request, res: Response): Promise<void> => {
 // Keep in sync with the client companion ids (client/src/config/companions.ts).
 const VALID_AVATAR_IDS = ['penguin', 'robot', 'star', 'gem'];
 
+// The care recipient's condition. Required at onboarding — it selects the prompt
+// wording via {{CONDITION}}, and enrollment guarantees one of these three.
+const VALID_CONDITIONS = ['TBI', 'ADRD', 'HD'];
+
 interface ProfileBody {
   displayName?: string;
   avatarId?: string;
   supportStyle?: string[];
   toneModifier?: string;
   recharge?: { categories?: string[]; other?: string };
+  careRecipientCondition?: string;
   caregiverProfile?: {
     relationship?: string;
     caregivingDurationMonths?: number;
@@ -54,6 +59,11 @@ router.post('/', auth, async (req: Request, res: Response): Promise<void> => {
     return;
   }
 
+  if (!body.careRecipientCondition || !VALID_CONDITIONS.includes(body.careRecipientCondition)) {
+    res.status(400).json({ error: 'A valid careRecipientCondition is required' });
+    return;
+  }
+
   try {
     const existing = await Baseline.findOne({ userId: req.user!.id }).lean();
     if (existing) {
@@ -71,6 +81,7 @@ router.post('/', auth, async (req: Request, res: Response): Promise<void> => {
         categories: body.recharge?.categories ?? [],
         other: body.recharge?.other?.trim() ?? '',
       },
+      careRecipientCondition: body.careRecipientCondition,
       caregiverProfile: {
         relationship: body.caregiverProfile?.relationship ?? '',
         caregivingDurationMonths: body.caregiverProfile?.caregivingDurationMonths ?? 0,
