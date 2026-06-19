@@ -12,14 +12,12 @@ import { buildSystemPrompt } from '../services/promptService';
 import { renderProfileContext, renderToneInstruction, renderConditionPhrase } from '../services/profileService';
 import { getContinueRecap } from '../services/summaryService';
 import { reconcileProfile } from '../services/reconcileService';
-import config from '../config/chatbot.config';
 
 const router = Router();
 
 const promptsDir = path.join(__dirname, '../prompts');
 const summarizePrompt = fs.readFileSync(path.join(promptsDir, 'summarize-prompt.txt'), 'utf-8').trim();
-const openerFirst     = fs.readFileSync(path.join(promptsDir, 'opener_first.txt'), 'utf-8').trim()
-  .replace('{{AGENT_NAME}}', config.name);
+const openerFirst     = fs.readFileSync(path.join(promptsDir, 'opener_first.txt'), 'utf-8').trim();
 const openerReturning = fs.readFileSync(path.join(promptsDir, 'opener_returning.txt'), 'utf-8').trim();
 
 // GET /api/session/latest-summary

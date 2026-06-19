@@ -1129,4 +1129,10 @@ body {
   .auth-card {
     padding: var(--space-6) var(--space-4);
   }
+
+  /* Reclaim horizontal space on narrow screens — the 75% cap leaves too much
+     empty gutter on a phone. */
+  .bubble {
+    max-width: 78%;
+  }
 }

@@ -1,5 +1,4 @@
 interface ChatbotConfig {
-  name: string;
   historyWindowSize: number;
   model: string;
   temperature: number;
@@ -7,8 +6,6 @@ interface ChatbotConfig {
 }
 
 const config: ChatbotConfig = {
-  name: 'Companion',
-
   // Number of recent messages (user + assistant combined) to include per turn.
   // Increase for longer memory; decrease to reduce token usage.
   historyWindowSize: 20,
