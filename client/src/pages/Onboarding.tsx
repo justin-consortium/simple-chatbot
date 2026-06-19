@@ -6,28 +6,28 @@ import { COMPANIONS, companionAvatar } from '../config/companions';
 const TOTAL_STEPS = 5;
 
 const SUPPORT_STYLE_OPTIONS = [
-  { code: 'listen',     label: 'Being heard',              description: 'I just need to get it out.' },
+  { code: 'listen',     label: 'Being heard',              description: 'Listen to me.' },
   { code: 'make_sense', label: 'Making sense of it',       description: 'Help me understand what\'s going on.' },
-  { code: 'reframe',    label: 'Seeing it differently',    description: 'Offer another way to look at it.' },
+  { code: 'reframe',    label: 'Seeing it differently',    description: 'Show me another way to look at it.' },
   { code: 'figure_out', label: 'Figuring out a next step', description: 'Help me decide what to do.' },
-  { code: 'inform',     label: 'Getting clear information', description: 'Give me facts or options.' },
+  { code: 'inform',     label: 'Getting information and guidance', description: 'Give me facts, options, or resources.' },
 ];
 
 const TONE_MODIFIER_OPTIONS = [
-  { code: 'direct',       label: 'Direct',       description: 'Get to the point in a plain-spoken way.' },
-  { code: 'professional', label: 'Professional', description: 'Stays grounded with a steady, formal tone.' },
-  { code: 'humorous',     label: 'Humorous',     description: 'A little lightness when the moment fits.' },
+  { code: 'direct',       label: 'Direct',       description: 'Straight to the point.' },
+  { code: 'professional', label: 'Professional', description: 'Clear, thoughtful, and approachable.' },
+  { code: 'humorous',     label: 'Humorous',     description: 'Adds a little lightness when the moment fits.' },
 ];
 
 const RECHARGE_OPTIONS = [
-  { code: 'moving',     label: 'Moving my body (walking, exercise, yoga, sports)' },
+  { code: 'moving',     label: 'Moving my body (walking, working out, playing sports)' },
   { code: 'outdoors',   label: 'Being outdoors / in nature' },
-  { code: 'creative',   label: 'Hands-on or creative (gardening, cooking, crafts, art, music, photography)' },
-  { code: 'learning',   label: 'Reading or learning (books, history, puzzles)' },
+  { code: 'creative',   label: 'Being creative or doing hands-on activities (gardening, cooking, crafts, art, music, photography)' },
+  { code: 'learning',   label: 'Reading, learning, or thinking (books, history, puzzles)' },
   { code: 'connecting', label: 'Connecting with people (friends, family, faith or community)' },
-  { code: 'rest',       label: 'Quiet and rest (tea or coffee, a bath, music, doing nothing)' },
-  { code: 'reflective', label: 'Reflective or spiritual (prayer, meditation, journaling)' },
-  { code: 'watching',   label: 'Watching or playing (movies, TV, games)' },
+  { code: 'rest',       label: 'Relaxation (tea or coffee, a bath, music, doing nothing)' },
+  { code: 'reflective', label: 'Reflection or spirituality (prayer, meditation, journaling)' },
+  { code: 'watching',   label: 'Screen time (movies, TV, video games, online activities)' },
 ];
 
 const RELATIONSHIP_OPTIONS = [
@@ -54,10 +54,10 @@ const CARE_TYPE_OPTIONS = [
 
 const STEP_QUESTIONS: Record<number, string> = {
   1: 'What would you like me to call you?',
-  2: 'I\'m always warm and caring. What would you like to add?',
-  3: 'When something\'s weighing on you, what usually helps most?',
-  4: 'Outside of caregiving, what do you enjoy, or what helps you recharge when you get a moment?',
-  5: 'A few questions about your caregiving situation so I can be a more relevant companion for you.',
+  2: 'Everyone likes to be supported in different ways.  What kind of support do you like?',
+  3: 'When something\'s bothering you, how can I help you?',
+  4: 'What do you enjoy, or what helps you recharge?',
+  5: 'I also want to understand your caregiver role.',
 };
 
 interface Answers {
@@ -157,7 +157,7 @@ export default function Onboarding() {
             <div className="ob-body ob-intro">
               <h1 className="ob-welcome-title">Welcome to CareCompanion</h1>
               <p className="ob-welcome-text">
-                CareCompanion is an AI chatbot here to listen and support you.
+                CareCompanion is here to listen and support you.
               </p>
               <p className="ob-welcome-text">
                 Before you begin, you'll choose a companion and answer a few questions so it can support you best.
@@ -177,7 +177,7 @@ export default function Onboarding() {
           <div className="ob-body ob-pick">
             <h2 className="ob-pick-title">Choose your companion</h2>
             <p className="ob-pick-subtitle">
-              They'll be here with you each time you visit. Pick the one that feels right.
+              They'll be here each time you visit. Pick the one that feels right.
             </p>
             <div className="ob-companion-grid">
               {COMPANIONS.map(c => {
@@ -256,7 +256,7 @@ export default function Onboarding() {
                     </span>
                     <span className="ob-locked-badge">always on</span>
                   </div>
-                  <span className="ob-trait-desc">Speak with care and stay here with you.</span>
+                  <span className="ob-trait-desc">Speak with care.</span>
                 </div>
                 {TONE_MODIFIER_OPTIONS.map(opt => {
                   const selected = answers.toneModifier === opt.code;
@@ -347,7 +347,7 @@ export default function Onboarding() {
               </div>
 
               <div className="ob-q5-section">
-                <p className="ob-q5-label">What kind of care do you provide? <span className="hint">(select all that apply)</span></p>
+                <p className="ob-q5-label">What kind(s) of care do you provide? <span className="hint">(select all that apply)</span></p>
                 <div className="ob-option-list">
                   {CARE_TYPE_OPTIONS.map(opt => (
                     <button
