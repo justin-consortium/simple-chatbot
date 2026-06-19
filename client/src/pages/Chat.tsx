@@ -40,14 +40,7 @@ type MessageItem = ChatMessage | SessionDivider;
 type SessionState = 'active' | 'sleeping' | 'menu' | 'welcome';
 type SessionMode = 'vent' | 'reflect' | 'solve' | 'free' | 'continue';
 
-const MENU_HEADINGS = [
-  'How would you like to spend this time?',
-  'What feels right for this conversation?',
-  'What would you like to do with this time?',
-  'What would be good for you right now?',
-  'What kind of conversation are you in the mood for?',
-  'What would you like this time to be?',
-];
+const MENU_HEADING = 'How can I help you?';
 
 // Shown one at a time while the session-end summarize + reconcile finishes, so
 // the resting screen feels like the companion is gently getting ready rather
@@ -133,7 +126,6 @@ export default function Chat() {
   const [continuedSummaryId, setContinuedSummaryId] = useState<string | null>(
     () => localStorage.getItem('continuedSummaryId')
   );
-  const [menuHeading, setMenuHeading] = useState(MENU_HEADINGS[0]);
   const [sessionEndReady, setSessionEndReady] = useState(false);
   const [preparingLabel, setPreparingLabel] = useState(PREPARING_LABELS[0]);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -321,7 +313,6 @@ export default function Chat() {
       // Refreshed while between sessions (paused/sleeping or menu): restore the
       // mode menu rather than dropping into a silent new conversation.
       if (pendingMenu) {
-        setMenuHeading(MENU_HEADINGS[Math.floor(Math.random() * MENU_HEADINGS.length)]);
         setSessionState('menu');
         return;
       }
@@ -338,7 +329,6 @@ export default function Chat() {
       if (!returning) {
         void startSession('free', sessionId);
       } else {
-        setMenuHeading(MENU_HEADINGS[Math.floor(Math.random() * MENU_HEADINGS.length)]);
         setSessionState('menu');
       }
     };
@@ -388,7 +378,6 @@ export default function Chat() {
       sessionEndRef.current = null;
     }
 
-    setMenuHeading(MENU_HEADINGS[Math.floor(Math.random() * MENU_HEADINGS.length)]);
     try {
       const res = await api.get<{ summary: { _id: string } | null }>('/session/latest-summary');
       setHasPriorSummary(res.data.summary !== null);
@@ -576,7 +565,7 @@ export default function Chat() {
         <div className="mode-menu-overlay" onClick={handleSkipMenu}>
           <div className="mode-menu-card" onClick={e => e.stopPropagation()}>
             <img src={companionAvatar(avatarId, 'waving')} alt="Companion" className="mode-menu-avatar" />
-            <h2 className="mode-menu-heading">{menuHeading}</h2>
+            <h2 className="mode-menu-heading">{MENU_HEADING}</h2>
             <div className="mode-menu-options">
               {MODE_OPTIONS
                 .filter(opt => !opt.requiresSummary || hasPriorSummary)
