@@ -30,6 +30,12 @@ const RECHARGE_OPTIONS = [
   { code: 'watching',   label: 'Screen time (movies, TV, video games, online activities)' },
 ];
 
+const CARE_RECIPIENT_CONDITION_OPTIONS = [
+  { code: 'TBI',  label: 'Traumatic brain injury' },
+  { code: 'ADRD', label: 'Alzheimer\'s disease or another form of dementia' },
+  { code: 'HD',   label: 'Huntington\'s disease' },
+];
+
 const RELATIONSHIP_OPTIONS = [
   { code: 'spouse_partner', label: 'Spouse or partner' },
   { code: 'parent',         label: 'Parent' },
@@ -67,6 +73,7 @@ interface Answers {
   toneModifier: string;
   rechargeCategories: string[];
   rechargeOther: string;
+  careRecipientCondition: string;
   relationship: string;
   caregivingYears: string;
   careTypes: string[];
@@ -85,6 +92,7 @@ export default function Onboarding() {
     toneModifier: '',
     rechargeCategories: [],
     rechargeOther: '',
+    careRecipientCondition: '',
     relationship: '',
     caregivingYears: '',
     careTypes: [],
@@ -135,6 +143,7 @@ export default function Onboarding() {
           categories: answers.rechargeCategories,
           other: answers.rechargeOther.trim(),
         },
+        careRecipientCondition: answers.careRecipientCondition,
         caregiverProfile: {
           relationship: answers.relationship,
           caregivingDurationMonths: years * 12,
@@ -318,6 +327,21 @@ export default function Onboarding() {
           {step === 5 && (
             <>
               <div className="ob-q5-section">
+                <p className="ob-q5-label">What condition does the person you care for live with?</p>
+                <div className="ob-option-list">
+                  {CARE_RECIPIENT_CONDITION_OPTIONS.map(opt => (
+                    <button
+                      key={opt.code}
+                      className={`ob-option-chip${answers.careRecipientCondition === opt.code ? ' selected' : ''}`}
+                      onClick={() => setAnswers(prev => ({ ...prev, careRecipientCondition: opt.code }))}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="ob-q5-section">
                 <p className="ob-q5-label">What is your relationship to the person you care for?</p>
                 <div className="ob-option-list">
                   {RELATIONSHIP_OPTIONS.map(opt => (
@@ -381,7 +405,7 @@ export default function Onboarding() {
               <button
                 className="btn-primary ob-btn-next"
                 onClick={() => void handleSubmit()}
-                disabled={submitting}
+                disabled={submitting || !answers.careRecipientCondition}
               >
                 {submitting ? 'Saving…' : 'Get started'}
               </button>

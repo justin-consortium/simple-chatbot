@@ -12,8 +12,10 @@ interface RenderableProfile {
 }
 
 // The fields reconcile/seed write — the mutable subset plus the frozen name.
+// careRecipientCondition is seeded once here but never written by reconcile.
 export interface SeededProfile {
   displayName: string;
+  careRecipientCondition: string;
   tone: string;
   coping: CopingEntry[];
   caregivingSituation: string;
@@ -103,6 +105,7 @@ function seedCoping(recharge: IBaseline['recharge']): CopingEntry[] {
 export function seedProfileFromBaseline(baseline: IBaseline): SeededProfile {
   return {
     displayName: baseline.displayName,
+    careRecipientCondition: baseline.careRecipientCondition,
     tone: TONE_SEED[baseline.toneModifier] ?? '',
     coping: seedCoping(baseline.recharge),
     caregivingSituation: seedCaregivingSituation(baseline.caregiverProfile),
@@ -153,4 +156,19 @@ export function renderProfileContext(profile: RenderableProfile): string {
 export function renderToneInstruction(tone: string): string {
   if (!tone) return '';
   return ` They've asked you to adjust how you come across: ${tone}.`;
+}
+
+// The care recipient's condition code -> the phrase filling {{CONDITION}} in the
+// MISSION line ("…people living with {{CONDITION}}."). The correct article lives
+// inside each value (TBI takes "a"; the disease names don't). The default never
+// fires for enrolled users — it just guarantees the sentence never breaks for a
+// missing or unrecognized code.
+const CONDITION_PHRASES: Record<string, string> = {
+  TBI:  'a traumatic brain injury (TBI)',
+  ADRD: "Alzheimer's disease or a related dementia",
+  HD:   'Huntington\'s disease (HD)',
+};
+
+export function renderConditionPhrase(condition: string): string {
+  return CONDITION_PHRASES[condition] ?? 'a significant health condition';
 }

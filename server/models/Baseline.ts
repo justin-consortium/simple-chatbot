@@ -14,6 +14,7 @@ export interface IBaseline extends Document {
     categories: string[];
     other: string;
   };
+  careRecipientCondition: string;
   caregiverProfile: {
     relationship: string;
     caregivingDurationMonths: number;
@@ -35,6 +36,7 @@ const baselineSchema = new Schema<IBaseline>(
       categories: [{ type: String }],
       other: { type: String, default: '' },
     },
+    careRecipientCondition: { type: String, default: '' },
     caregiverProfile: {
       relationship: { type: String, default: '' },
       caregivingDurationMonths: { type: Number, default: 0 },
