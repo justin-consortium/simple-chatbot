@@ -57,7 +57,7 @@ const PREPARING_LABELS = [
 
 const MODE_OPTIONS: { mode: SessionMode; label: string; requiresSummary?: boolean }[] = [
   { mode: 'continue', label: 'Continue our last conversation', requiresSummary: true },
-  { mode: 'vent',     label: 'Get some feelings out' },
+  { mode: 'vent',     label: 'Get my feelings out' },
   { mode: 'reflect',  label: 'Make sense of something' },
   { mode: 'solve',    label: 'Figure out what to do' },
 ];
