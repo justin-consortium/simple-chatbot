@@ -726,7 +726,6 @@ body {
 
 .ob-companion-card:hover {
   border-color: #94BBA9;
-  background: #EEF5F1;
 }
 
 .ob-companion-card:active {
@@ -736,7 +735,6 @@ body {
 .ob-companion-card.selected {
   border-color: var(--color-primary);
   border-width: 2px;
-  background: var(--color-primary-soft);
 }
 
 .ob-companion-card.selected::after {

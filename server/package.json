@@ -4,7 +4,8 @@
   "scripts": {
     "dev": "tsx watch server.ts",
     "build": "tsc && cp -r prompts dist/prompts",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "test": "node --import tsx --test \"**/*.test.ts\""
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

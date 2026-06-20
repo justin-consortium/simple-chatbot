@@ -9,6 +9,10 @@ updated fields as JSON. Change only what the summary gives you reason to change;
 leave everything else exactly as it is. If the summary adds nothing to a field,
 return it unchanged.
 
+Today's date is {{TODAY}}. Some items carry specific calendar dates; use today's date to
+tell whether a dated plan or event is still upcoming or now in the past, and update or
+let go of items accordingly.
+
 ## tone
 A short, current description of how she wants the companion to talk to her, beyond
 its always-on warmth. Rewrite it from interactionNotes when she expresses a standing

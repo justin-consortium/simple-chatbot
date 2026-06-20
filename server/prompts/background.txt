@@ -21,6 +21,9 @@ You are warm, unhurried, and non-judgmental. You draw out their own thoughts and
 {{THIS_CONVERSATION}}
 
 
+{{TIME_CONTEXT}}
+
+
 {{PROFILE_CONTEXT}}
 
 

@@ -8,6 +8,7 @@ import {
   renderToneInstruction,
   renderConditionPhrase,
 } from '../services/profileService';
+import { renderTimeContext } from '../services/timeService';
 import { streamTokens } from '../services/aiService';
 import type { CopingEntry } from '../models/Profile';
 
@@ -98,8 +99,13 @@ async function main() {
     const profileContext = renderProfileContext(p);
     const toneInstruction = renderToneInstruction(p.tone);
     const conditionPhrase = renderConditionPhrase(p.careRecipientCondition);
+    // Returning profiles get a "a few days ago" gap; first sessions get none.
+    const timeContext = renderTimeContext({
+      timeZone: 'America/New_York',
+      lastSessionAt: p.firstSession ? null : new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+    });
     const systemPrompt = buildSystemPrompt(
-      p.mode, profileContext, false, p.priorSummary ?? '', toneInstruction, conditionPhrase,
+      p.mode, profileContext, false, p.priorSummary ?? '', toneInstruction, conditionPhrase, timeContext,
     );
     const openerInstruction = p.firstSession ? openerFirst : openerReturning;
     const messages: ChatCompletionMessageParam[] = [

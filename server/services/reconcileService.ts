@@ -4,6 +4,7 @@ import type { ChatCompletionMessageParam } from 'openai/resources';
 import Profile from '../models/Profile';
 import type { CopingEntry } from '../models/Profile';
 import { callOnce } from './aiService';
+import { localDateLabel } from './timeService';
 
 const reconcilePrompt = fs
   .readFileSync(path.join(__dirname, '../prompts/reconcile-prompt.txt'), 'utf-8')
@@ -94,7 +95,8 @@ function validate(parsed: Record<string, unknown>): MutableProfile | null {
 // session end, after the summary is created and before the response is sent.
 export async function reconcileProfile(
   userId: string,
-  summary: ReconcileSummaryInput
+  summary: ReconcileSummaryInput,
+  today: string = localDateLabel()
 ): Promise<void> {
   const profile = await Profile.findOne({ userId });
   if (!profile) return; // no seeded profile — nothing to reconcile into
@@ -121,7 +123,7 @@ export async function reconcileProfile(
   };
 
   const messages: ChatCompletionMessageParam[] = [
-    { role: 'system', content: reconcilePrompt },
+    { role: 'system', content: reconcilePrompt.replace('{{TODAY}}', today) },
     { role: 'user', content: JSON.stringify(input, null, 2) },
   ];
 
