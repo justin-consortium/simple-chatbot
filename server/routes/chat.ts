@@ -6,6 +6,7 @@ import auth from '../middleware/auth';
 import { streamTokens } from '../services/aiService';
 import { buildSystemPrompt } from '../services/promptService';
 import { renderProfileContext, renderToneInstruction, renderConditionPhrase } from '../services/profileService';
+import { renderTimeContext } from '../services/timeService';
 import { getContinueRecap } from '../services/summaryService';
 import Profile from '../models/Profile';
 
@@ -23,11 +24,12 @@ router.get('/history', auth, async (req: Request, res: Response): Promise<void> 
 });
 
 router.post('/message', auth, async (req: Request, res: Response): Promise<void> => {
-  const { content, mode, sessionId, continuedSummaryId } = req.body as {
+  const { content, mode, sessionId, continuedSummaryId, timeZone } = req.body as {
     content?: string;
     mode?: string;
     sessionId?: string;
     continuedSummaryId?: string;
+    timeZone?: string;
   };
   if (!content?.trim()) {
     res.status(400).json({ error: 'Message content required' });
@@ -39,6 +41,11 @@ router.post('/message', auth, async (req: Request, res: Response): Promise<void>
     const profileContext = profile ? renderProfileContext(profile) : '';
     const toneInstruction = profile ? renderToneInstruction(profile.tone) : '';
     const conditionPhrase = renderConditionPhrase(profile?.careRecipientCondition ?? '');
+    // "Last conversation" anchor: most recent message outside the current session.
+    const lastPrior = await Message.findOne({ userId: req.user!.id, sessionId: { $ne: sessionId } })
+      .sort({ createdAt: -1 })
+      .lean();
+    const timeContext = renderTimeContext({ timeZone, lastSessionAt: lastPrior?.createdAt ?? null });
     // For continue mode, re-inject the pinned prior-session recap on every turn
     // (not just at session start), so the thread persists through the session.
     const priorSummary = await getContinueRecap(req.user!.id, mode, continuedSummaryId);
@@ -58,7 +65,7 @@ router.post('/message', auth, async (req: Request, res: Response): Promise<void>
       .lean();
 
     const contextMessages: ChatCompletionMessageParam[] = [
-      { role: 'system', content: buildSystemPrompt(mode ?? 'free', profileContext, false, priorSummary, toneInstruction, conditionPhrase) },
+      { role: 'system', content: buildSystemPrompt(mode ?? 'free', profileContext, false, priorSummary, toneInstruction, conditionPhrase, timeContext) },
       ...history.map(m => ({
         role: m.role as 'user' | 'assistant',
         content: m.content,

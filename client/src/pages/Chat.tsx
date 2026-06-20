@@ -76,6 +76,13 @@ const LAST_ACTIVE_KEY = 'lastActiveAt'; // timestamp (ms) of the last user activ
 // absence at load distinguishes a cold start from a same-process refresh.
 const TAB_ALIVE_KEY = 'tabAlive';
 
+// The browser's IANA timezone (e.g. "America/New_York"), sent with requests so the
+// server can render the caregiver's local time. Read fresh each call so it follows
+// the device if they travel.
+function getTimeZone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone;
+}
+
 // Records "the user just did something". Used to measure inactivity.
 function markActive(): void {
   localStorage.setItem(LAST_ACTIVE_KEY, String(Date.now()));
@@ -174,7 +181,7 @@ export default function Chat() {
       const response = await fetch('/api/session/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode, sessionId: sid, continuedSummaryId: continuedId ?? undefined }),
+        body: JSON.stringify({ mode, sessionId: sid, continuedSummaryId: continuedId ?? undefined, timeZone: getTimeZone() }),
         credentials: 'include',
       });
 
@@ -240,7 +247,7 @@ export default function Chat() {
     sessionEndRef.current = fetch('/api/session/end', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionId: sid }),
+      body: JSON.stringify({ sessionId: sid, timeZone: getTimeZone() }),
       credentials: 'include',
     })
       .then(() => {})
@@ -436,7 +443,7 @@ export default function Chat() {
       const response = await fetch('/api/chat/message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content, mode: sessionMode, sessionId, continuedSummaryId: continuedSummaryId ?? undefined }),
+        body: JSON.stringify({ content, mode: sessionMode, sessionId, continuedSummaryId: continuedSummaryId ?? undefined, timeZone: getTimeZone() }),
         credentials: 'include',
       });
 

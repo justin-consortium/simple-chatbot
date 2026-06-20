@@ -10,6 +10,7 @@ import auth from '../middleware/auth';
 import { streamTokens, callOnce } from '../services/aiService';
 import { buildSystemPrompt } from '../services/promptService';
 import { renderProfileContext, renderToneInstruction, renderConditionPhrase } from '../services/profileService';
+import { renderTimeContext, localDateLabel } from '../services/timeService';
 import { getContinueRecap } from '../services/summaryService';
 import { reconcileProfile } from '../services/reconcileService';
 
@@ -36,7 +37,7 @@ router.get('/latest-summary', auth, async (req: Request, res: Response): Promise
 // POST /api/session/end
 // Summarizes the session's messages and stores the result. Fire-and-forget friendly.
 router.post('/end', auth, async (req: Request, res: Response): Promise<void> => {
-  const { sessionId } = req.body as { sessionId?: string };
+  const { sessionId, timeZone } = req.body as { sessionId?: string; timeZone?: string };
   if (!sessionId) {
     res.status(400).json({ error: 'sessionId required' });
     return;
@@ -60,9 +61,19 @@ router.post('/end', auth, async (req: Request, res: Response): Promise<void> => 
     // same source as {{CONDITION}} in the system prompt — no hardcoded condition.
     const profile = await Profile.findOne({ userId: req.user!.id }).lean();
     const conditionPhrase = renderConditionPhrase(profile?.careRecipientCondition ?? '');
+    // The date the conversation actually happened, taken from its own messages — not
+    // when this handler runs. They differ when a force-quit session is summarized later,
+    // at the start of the next visit (the session-lifecycle catch-up). The summarizer
+    // resolves the caregiver's relative time references ("next Friday") against this day.
+    const sessionDate = localDateLabel(timeZone, messages[messages.length - 1].createdAt);
 
     const summarizeMessages: ChatCompletionMessageParam[] = [
-      { role: 'system', content: summarizePrompt.replace('{{CONDITION}}', conditionPhrase) },
+      {
+        role: 'system',
+        content: summarizePrompt
+          .replace('{{CONDITION}}', conditionPhrase)
+          .replace('{{SESSION_DATE}}', sessionDate),
+      },
       { role: 'user',   content: transcript },
     ];
 
@@ -97,7 +108,9 @@ router.post('/end', auth, async (req: Request, res: Response): Promise<void> => 
     // so the next session reads an up-to-date profile and the client's "tap to
     // continue" affordance (gated on this request finishing) can't race the
     // rewrite. Best-effort: a reconcile failure keeps the prior profile.
-    await reconcileProfile(req.user!.id, summaryContent);
+    // Reconcile gets the real current date (when it runs) — later than sessionDate in
+    // the catch-up case — so it can tell whether stored dated plans are now past.
+    await reconcileProfile(req.user!.id, summaryContent, localDateLabel(timeZone));
 
     res.json({ success: true });
   } catch (err) {
@@ -109,10 +122,11 @@ router.post('/end', auth, async (req: Request, res: Response): Promise<void> => 
 // POST /api/session/start
 // Generates and streams an opening message from the agent.
 router.post('/start', auth, async (req: Request, res: Response): Promise<void> => {
-  const { mode, sessionId, continuedSummaryId } = req.body as {
+  const { mode, sessionId, continuedSummaryId, timeZone } = req.body as {
     mode?: string;
     sessionId?: string;
     continuedSummaryId?: string;
+    timeZone?: string;
   };
   if (!sessionId) {
     res.status(400).json({ error: 'sessionId required' });
@@ -124,6 +138,11 @@ router.post('/start', auth, async (req: Request, res: Response): Promise<void> =
     const profileContext = profile ? renderProfileContext(profile) : '';
     const toneInstruction = profile ? renderToneInstruction(profile.tone) : '';
     const conditionPhrase = renderConditionPhrase(profile?.careRecipientCondition ?? '');
+    // "Last conversation" anchor: most recent message outside the current session.
+    const lastPrior = await Message.findOne({ userId: req.user!.id, sessionId: { $ne: sessionId } })
+      .sort({ createdAt: -1 })
+      .lean();
+    const timeContext = renderTimeContext({ timeZone, lastSessionAt: lastPrior?.createdAt ?? null });
 
     const latestSummary = await Summary.findOne({ userId: req.user!.id })
       .sort({ createdAt: -1 })
@@ -134,7 +153,7 @@ router.post('/start', auth, async (req: Request, res: Response): Promise<void> =
     // (falls back to latest). Scoped by userId inside the helper.
     const priorSummary = await getContinueRecap(req.user!.id, mode, continuedSummaryId);
 
-    const systemPrompt = buildSystemPrompt(mode ?? 'free', profileContext, false, priorSummary, toneInstruction, conditionPhrase);
+    const systemPrompt = buildSystemPrompt(mode ?? 'free', profileContext, false, priorSummary, toneInstruction, conditionPhrase, timeContext);
     const openerInstruction = isFirstSession ? openerFirst : openerReturning;
 
     const messages: ChatCompletionMessageParam[] = [
