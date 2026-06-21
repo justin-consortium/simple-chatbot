@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "scripts": {
     "dev": "tsx watch server.ts",
-    "build": "tsc && cp -r prompts dist/prompts",
+    "build": "tsc && rm -rf dist/prompts && cp -r prompts dist/prompts",
     "start": "node dist/server.js",
     "test": "node --import tsx --test \"**/*.test.ts\""
   },
