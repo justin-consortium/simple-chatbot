@@ -324,6 +324,7 @@ body {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh;
   background:
     radial-gradient(125% 55% at 50% -12%, #FCF4E6 0%, rgba(252, 244, 230, 0) 55%),
     radial-gradient(100% 60% at 92% 112%, #EDF2E8 0%, rgba(237, 242, 232, 0) 55%),

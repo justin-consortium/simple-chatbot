@@ -65,7 +65,7 @@ const MODE_OPTIONS: { mode: SessionMode; label: string; requiresSummary?: boolea
 // How long the app can sit inactive — idle in the foreground, backgrounded, or
 // brought back later — before the in-progress conversation is automatically
 // wound down (same effect as pressing "End conversation"). Adjust to taste.
-const INACTIVITY_LIMIT_MS = 60 * 1000; // 60 seconds (TEMP for testing — restore to 60 * 60 * 1000)
+const INACTIVITY_LIMIT_MS = 60 * 60 * 1000; // 1 hour
 
 // Durable session keys live in localStorage so they survive a force-quit (unlike
 // per-tab sessionStorage), letting the app tell "resume / wind down / welcome"
