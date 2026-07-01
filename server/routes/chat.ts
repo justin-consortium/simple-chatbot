@@ -82,7 +82,8 @@ router.post('/message', auth, async (req: Request, res: Response): Promise<void>
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders();
 
-    const FILTERED_FALLBACK = "I hear that something difficult is weighing on you. I'm here — take your time.";
+    const CRISIS_MESSAGE = "That sounds like you're carrying something really heavy right now. I don't want to just skip past what you said, and I want to take it seriously. If you need help, please call or text 988 (Suicide and Crisis Lifeline), or text HOME to 741741 (Crisis Text Line) — both are available anytime, day or night. For an immediate emergency, please call 911. You don't have to carry this alone, and you don't have to have it all figured out to reach out.";
+    const GENERIC_FALLBACK = "Something got in the way on my end. I'm still here — could you try again?";
     const MAX_STREAM_ATTEMPTS = 2;
 
     let fullContent = '';
@@ -99,6 +100,7 @@ router.post('/message', auth, async (req: Request, res: Response): Promise<void>
           res.write(`data: ${JSON.stringify({ token })}\n\n`);
         }
       } catch (streamErr) {
+        console.warn(`[chat] stream error on attempt ${attempt}: message="${(streamErr as Error).message}"`);
         if ((streamErr as Error).message !== 'content_filter') throw streamErr;
         contentFiltered = true;
       }
@@ -106,12 +108,22 @@ router.post('/message', auth, async (req: Request, res: Response): Promise<void>
       console.warn(`[chat] empty stream on attempt ${attempt}/${MAX_STREAM_ATTEMPTS}, retrying`);
     }
 
-    if (!fullContent) {
-      fullContent = FILTERED_FALLBACK;
-      res.write(`data: ${JSON.stringify({ token: fullContent })}\n\n`);
-    }
+    console.warn(`[chat] stream result: fullContent.length=${fullContent.length}, contentFiltered=${contentFiltered}`);
 
-    await Message.create({ userId: req.user!.id, role: 'assistant', content: fullContent, sessionId });
+    if (!fullContent) {
+      if (contentFiltered) {
+        // Explicit content filter — signal the client to show crisis resources,
+        // and persist the crisis message so history is consistent on reload.
+        res.write(`data: ${JSON.stringify({ filtered: true })}\n\n`);
+        await Message.create({ userId: req.user!.id, role: 'assistant', content: CRISIS_MESSAGE, sessionId });
+      } else {
+        // Empty stream from a transient error — generic fallback, not crisis-specific.
+        res.write(`data: ${JSON.stringify({ token: GENERIC_FALLBACK })}\n\n`);
+        await Message.create({ userId: req.user!.id, role: 'assistant', content: GENERIC_FALLBACK, sessionId });
+      }
+    } else {
+      await Message.create({ userId: req.user!.id, role: 'assistant', content: fullContent, sessionId });
+    }
 
     res.write('data: [DONE]\n\n');
     res.end();
