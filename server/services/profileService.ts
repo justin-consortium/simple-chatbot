@@ -22,15 +22,20 @@ export interface SeededProfile {
   threads: string[];
 }
 
+// The onboarding answer names who the caregiver *is* to the care recipient
+// ("I am their child"). seedCaregivingSituation renders "Caring for their ___",
+// which needs the *inverse* — who the care recipient is to the caregiver. So a
+// caregiver who is the "child" is caring for their parent, and a "grandchild"
+// cares for their grandparent. Symmetric relations map to themselves. Each value
+// must read grammatically after "Caring for their ".
 const RELATIONSHIP_LABELS: Record<string, string> = {
-  spouse_partner: 'spouse or partner',
-  parent:         'parent',
-  adult_child:    'adult child',
-  sibling:        'sibling',
-  grandchild:     'grandchild',
-  other_relative: 'other relative',
-  friend:         'friend',
-  other:          'family member',
+  spouse_partner:  'spouse or partner',
+  child:           'parent',
+  sibling:         'sibling',
+  grandchild:      'grandparent',
+  other_relative:  'relative',
+  friend_neighbor: 'friend or neighbor',
+  other:           'loved one',
 };
 
 const CARE_TYPE_LABELS: Record<string, string> = {

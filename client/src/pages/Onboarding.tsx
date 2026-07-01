@@ -36,15 +36,17 @@ const CARE_RECIPIENT_CONDITION_OPTIONS = [
   { code: 'HD',   label: 'Huntington\'s disease' },
 ];
 
+// The answer names who the caregiver *is* to the care recipient ("I am their…").
+// The server inverts this into who they care for (see RELATIONSHIP_LABELS in
+// server/services/profileService.ts) — e.g. "child" -> caring for their parent.
 const RELATIONSHIP_OPTIONS = [
-  { code: 'spouse_partner', label: 'Spouse or partner' },
-  { code: 'parent',         label: 'Parent' },
-  { code: 'adult_child',    label: 'Adult child' },
-  { code: 'sibling',        label: 'Sibling' },
-  { code: 'grandchild',     label: 'Grandchild' },
-  { code: 'other_relative', label: 'Other relative' },
-  { code: 'friend',         label: 'Friend' },
-  { code: 'other',          label: 'Other' },
+  { code: 'spouse_partner',  label: 'Spouse/partner' },
+  { code: 'child',           label: 'Child (daughter/son)' },
+  { code: 'sibling',         label: 'Sibling (brother/sister)' },
+  { code: 'grandchild',      label: 'Grandchild (grandson/granddaughter)' },
+  { code: 'other_relative',  label: 'Other relative (niece, nephew, cousin, in-law, etc.)' },
+  { code: 'friend_neighbor', label: 'Friend/neighbor' },
+  { code: 'other',           label: 'Other' },
 ];
 
 const CARE_TYPE_OPTIONS = [
@@ -342,7 +344,7 @@ export default function Onboarding() {
               </div>
 
               <div className="ob-q5-section">
-                <p className="ob-q5-label">What is your relationship to the person you care for?</p>
+                <p className="ob-q5-label">How are you related to the person you care for? I am their:</p>
                 <div className="ob-option-list">
                   {RELATIONSHIP_OPTIONS.map(opt => (
                     <button
