@@ -9,12 +9,17 @@ function load(filename: string): string {
 
 // Load once at startup
 const background = load('background.txt');
-const modeModules: Record<string, string> = {
-  vent:     load('mode_vent.txt'),
-  reflect:  load('mode_reflect.txt'),
-  solve:    load('mode_solve.txt'),
-  free:     load('mode_free.txt'),
-  continue: load('mode_continue.txt'),
+// The "craft" scaffold is always injected into {{THIS_CONVERSATION}}, regardless
+// of the menu selection, so the model always carries the how-to guidance for every
+// need (vent/reflect/solve/company). The menu selection only sets the *entry point*
+// via {{ENTRY_EMPHASIS}} — it no longer caps the conversation to a single mode.
+const craft = load('mode_craft.txt');
+const entryEmphasis: Record<string, string> = {
+  vent:     load('entry_vent.txt'),
+  reflect:  load('entry_reflect.txt'),
+  solve:    load('entry_solve.txt'),
+  free:     load('entry_free.txt'),
+  continue: load('entry_continue.txt'),
 };
 
 const DEBUG_FOOTER = (mode: string) =>
@@ -29,17 +34,21 @@ export function buildSystemPrompt(
   conditionPhrase: string = 'a significant health condition',
   timeContext: string = '',
 ): string {
-  const resolvedMode = modeModules[mode] ? mode : 'free';
-  let modeText = modeModules[resolvedMode];
+  const resolvedMode = entryEmphasis[mode] ? mode : 'free';
+  let emphasis = entryEmphasis[resolvedMode];
 
   if (resolvedMode === 'continue') {
-    modeText = priorSummary
-      ? modeText.replace('{{PRIOR_SUMMARY}}', priorSummary)
-      : modeModules['free']; // no summary yet — fall back to free
+    emphasis = priorSummary
+      ? emphasis.replace('{{PRIOR_SUMMARY}}', priorSummary)
+      : entryEmphasis['free']; // no summary yet — fall back to free
   }
 
+  // {{THIS_CONVERSATION}} always gets the full craft scaffold; the menu selection
+  // only fills the nested {{ENTRY_EMPHASIS}} slot with a "begin here" nudge.
+  const conversation = craft.replace('{{ENTRY_EMPHASIS}}', emphasis);
+
   let prompt = background
-    .replace('{{THIS_CONVERSATION}}', modeText)
+    .replace('{{THIS_CONVERSATION}}', conversation)
     .replace('{{PROFILE_CONTEXT}}', profileContext)
     .replace('{{TONE}}', toneInstruction)
     .replace('{{CONDITION}}', conditionPhrase)
