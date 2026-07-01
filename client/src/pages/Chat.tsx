@@ -40,7 +40,7 @@ type MessageItem = ChatMessage | SessionDivider;
 type SessionState = 'active' | 'sleeping' | 'menu' | 'welcome';
 type SessionMode = 'vent' | 'reflect' | 'solve' | 'free' | 'continue';
 
-const MENU_HEADING = 'How can I help you?';
+const MENU_HEADING = 'Where do you want to start?';
 
 // Shown one at a time while the session-end summarize + reconcile finishes, so
 // the resting screen feels like the companion is gently getting ready rather
