@@ -1,5 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'fs';
+import path from 'path';
 import { buildSystemPrompt } from './promptService';
 
 // Deterministic tests for prompt assembly — no API, no DB. Run with:
@@ -25,12 +27,14 @@ const SCAFFOLD_MARKERS = {
 };
 
 // Exact entry-emphasis fragments (entry_*.txt).
-const ENTRY_FRAGMENT: Record<string, string> = {
-  vent:    'wanting to vent, so begin there',
-  reflect: 'wanting to make sense of an experience, so begin there',
-  solve:   'wanting to work through a problem, so begin there',
-  free:    "hasn't named a specific need",
-};
+// Read the ACTUAL entry files, so rewording them never snaps these assertions and
+// the (full-sentence) leak-check stays valid even though the always-on scaffold
+// legitimately mentions every need. Keyed by mode; continue is placeholder-based.
+const promptsDir = path.join(__dirname, '../prompts');
+const ENTRY_TEXT: Record<string, string> = Object.fromEntries(
+  ['vent', 'reflect', 'solve', 'free'].map(m =>
+    [m, fs.readFileSync(path.join(promptsDir, `entry_${m}.txt`), 'utf-8').trim()]),
+);
 
 // A build with everything populated, to be sure real values don't reintroduce braces.
 function fullBuild(mode: string, priorSummary = '') {
@@ -71,11 +75,11 @@ test('core invariant: every mode carries the full multi-need craft scaffold', ()
 test('entry emphasis matches the selected mode', () => {
   for (const mode of ['vent', 'reflect', 'solve', 'free']) {
     const out = fullBuild(mode);
-    assert.ok(out.includes(ENTRY_FRAGMENT[mode]), `mode=${mode} missing its entry emphasis`);
-    // and no OTHER mode's entry emphasis leaked in
-    for (const other of ['vent', 'reflect', 'solve']) {
+    assert.ok(out.includes(ENTRY_TEXT[mode]), `mode=${mode} missing its entry emphasis`);
+    // and no OTHER mode's (full) entry emphasis leaked in
+    for (const other of ['vent', 'reflect', 'solve', 'free']) {
       if (other !== mode) {
-        assert.equal(out.includes(ENTRY_FRAGMENT[other]), false, `mode=${mode} wrongly contains ${other} entry`);
+        assert.equal(out.includes(ENTRY_TEXT[other]), false, `mode=${mode} wrongly contains ${other} entry`);
       }
     }
   }
@@ -89,13 +93,13 @@ test('#5 continue injects the prior summary and strips the placeholder', () => {
   assert.ok(out.includes('continues an earlier conversation'), 'continue framing missing');
   assert.equal(out.includes('PRIOR_SUMMARY'), false, 'PRIOR_SUMMARY token leaked');
   // continue was chosen, so the free-entry fallback text must NOT appear
-  assert.equal(out.includes(ENTRY_FRAGMENT.free), false, 'unexpectedly fell back to free');
+  assert.equal(out.includes(ENTRY_TEXT.free), false, 'unexpectedly fell back to free');
 });
 
 // ---- #5: continue with NO summary falls back to free entry ---------------
 test('#5 continue with no summary falls back to the free entry cleanly', () => {
   const out = fullBuild('continue', '');
-  assert.ok(out.includes(ENTRY_FRAGMENT.free), 'did not fall back to free entry');
+  assert.ok(out.includes(ENTRY_TEXT.free), 'did not fall back to free entry');
   assert.equal(out.includes('continues an earlier conversation'), false, 'left a dangling continue frame with no recap');
   assert.equal(/\{\{/.test(out), false, 'leftover placeholder after fallback');
 });
@@ -103,7 +107,7 @@ test('#5 continue with no summary falls back to the free entry cleanly', () => {
 // ---- unknown mode falls back to free -------------------------------------
 test('unknown mode falls back to the free entry', () => {
   const out = fullBuild('totally-made-up');
-  assert.ok(out.includes(ENTRY_FRAGMENT.free), 'unknown mode did not fall back to free');
+  assert.ok(out.includes(ENTRY_TEXT.free), 'unknown mode did not fall back to free');
 });
 
 // ---- #6 (deterministic half): safety overrides survive assembly ----------
