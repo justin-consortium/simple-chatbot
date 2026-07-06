@@ -34,7 +34,8 @@ interface Group {
 }
 
 const GROUPS: Group[] = [
-  { prefix: 'CCT', count: 50, role: 'participant' }, // CareCompanionTBI participants
+  { prefix: 'CCT', count: 50, role: 'participant' }, // CareCompanionTBI participants (TBI)
+  { prefix: 'CCH', count: 50, role: 'participant' }, // CareCompanion participants (HD)
   { prefix: 'CODA', count: 20, role: 'researcher' }, // CODA Lab researcher test accounts
   { prefix: 'GUEST', count: 20, role: 'guest' }, // public / passerby test accounts
 ];
