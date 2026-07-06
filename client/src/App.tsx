@@ -3,7 +3,6 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import Login from './pages/Login';
-import Register from './pages/Register';
 import Chat from './pages/Chat';
 import Onboarding from './pages/Onboarding';
 
@@ -26,9 +25,11 @@ export default function App() {
         <ErrorBoundary>
           <Routes>
             <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
-            <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
             <Route path="/" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
             <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
+            {/* Unknown paths (e.g. stale /register bookmarks) fall back to the app,
+                which itself redirects to /login when not authenticated. */}
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </ErrorBoundary>
       </BrowserRouter>

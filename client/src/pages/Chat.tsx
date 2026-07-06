@@ -264,19 +264,13 @@ export default function Chat() {
     setSessionState('sleeping');
   };
 
-  // On mount: load profile display name, history, and prior summary in parallel,
-  // then decide what to show. A cold start (force-quit reopen or fresh tab) is
-  // distinguished from a same-process refresh by the sessionStorage tabAlive flag.
+  // On mount: gate on onboarding (a missing Profile → onboarding), then load
+  // history and prior summary and decide what to show. A cold start (force-quit
+  // reopen or fresh tab) is distinguished from a same-process refresh by the
+  // sessionStorage tabAlive flag.
   useEffect(() => {
     if (didInit.current) return;
     didInit.current = true;
-
-    api.get<{ displayName: string; avatarId: string }>('/profile')
-      .then(res => {
-        setDisplayName(res.data.displayName);
-        setAvatarId(res.data.avatarId);
-      })
-      .catch(() => {});
 
     const init = async () => {
       const [historyResult, summaryResult] = await Promise.allSettled([
@@ -342,7 +336,23 @@ export default function Chat() {
       }
     };
 
-    void init();
+    // Onboarding gate: a missing Profile (404) means this account hasn't
+    // onboarded — route to onboarding instead of the resting/chat screen. Any
+    // other (transient) error falls through into the app, preserving prior UX.
+    api.get<{ displayName: string; avatarId: string }>('/profile')
+      .then(res => {
+        setDisplayName(res.data.displayName);
+        setAvatarId(res.data.avatarId);
+        void init();
+      })
+      .catch((err: unknown) => {
+        const status = (err as { response?: { status?: number } })?.response?.status;
+        if (status === 404) {
+          navigate('/onboarding', { replace: true });
+          return;
+        }
+        void init();
+      });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

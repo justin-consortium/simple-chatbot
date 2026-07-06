@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/client';
+import { useAuth } from '../context/AuthContext';
 import { COMPANIONS, companionAvatar } from '../config/companions';
 
 const TOTAL_STEPS = 5;
@@ -83,6 +84,7 @@ interface Answers {
 
 export default function Onboarding() {
   const navigate = useNavigate();
+  const { logout } = useAuth();
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -105,6 +107,15 @@ export default function Onboarding() {
       .then(() => navigate('/', { replace: true }))
       .catch(() => {});
   }, [navigate]);
+
+  // Escape hatch from onboarding: a freshly-logged-in user who used the wrong
+  // account can drop the session and return to the login screen without being
+  // forced through the whole flow. (The browser Back button can't do this — a
+  // valid session cookie always redirects away from /login.)
+  const handleBackToLogin = async (): Promise<void> => {
+    await logout();
+    navigate('/login', { replace: true });
+  };
 
   const toggleMulti = (
     field: keyof Pick<Answers, 'supportStyle' | 'rechargeCategories' | 'careTypes'>,
@@ -175,6 +186,13 @@ export default function Onboarding() {
               </p>
               <button className="btn-primary ob-intro-btn" onClick={() => setIntroStage('avatar')}>
                 Let's get started
+              </button>
+              <button
+                type="button"
+                className="ob-back-to-login"
+                onClick={() => void handleBackToLogin()}
+              >
+                Back to login
               </button>
             </div>
           </div>

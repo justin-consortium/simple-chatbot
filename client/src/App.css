@@ -37,6 +37,7 @@ body {
   --auth-paper:        #F6F4EF;
   --auth-panel:        rgba(255, 255, 255, 0.68);
   --auth-panel-border: rgba(40, 36, 30, 0.08);
+  --auth-honey:        #D6A44A;
 
   position: relative;
   min-height: 100vh;
@@ -127,7 +128,7 @@ body {
   padding: clamp(var(--space-6), 4vw, var(--space-8));
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.8),
-    0 18px 48px -30px rgba(40, 36, 30, 0.28);
+    0 14px 44px -30px rgba(40, 36, 30, 0.16);
   animation: authRise 0.7s cubic-bezier(0.22, 0.61, 0.36, 1) 0.12s both;
 }
 
@@ -221,6 +222,7 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .login-hero,
   .login-form-section,
+  .login-note,
   .auth-card { animation: none; }
 }
 
@@ -304,6 +306,54 @@ body {
 
 .auth-switch a:hover {
   text-decoration: underline;
+}
+
+/* Contact note — its own card below the sign-in panel, left-aligned, with a
+   green accent so it reads as a separate informational block. */
+.login-note {
+  width: 100%;
+  max-width: 420px;
+  margin-top: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  text-align: left;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid var(--auth-panel-border);
+  border-left: 3px solid var(--auth-honey);
+  border-radius: var(--radius-md);
+  animation: authRise 0.7s cubic-bezier(0.22, 0.61, 0.36, 1) 0.2s both;
+}
+
+.login-note-lead {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  color: var(--auth-ink-soft);
+}
+
+.login-note-contact {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--auth-ink);
+}
+
+.login-note-contact a {
+  color: var(--color-primary);
+  font-weight: 500;
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.login-note-contact a:hover {
+  text-decoration: underline;
+}
+
+/* Keep the live countdown (e.g. "14 minutes 38 seconds") from breaking across
+   lines mid-phrase, which reads confusingly as it ticks down. */
+.countdown-time {
+  white-space: nowrap;
 }
 
 .hint {
@@ -678,6 +728,27 @@ body {
   padding: 0.875rem 1rem;
   font-size: 1rem;
   margin-top: 0.5rem;
+}
+
+/* Low-emphasis "Back to login" under the primary CTA on the welcome screen.
+   Uses the brand green (like other links) so it reads as a clickable link and
+   doesn't blend into the grey body copy above it. */
+.ob-back-to-login {
+  margin-top: -0.5rem; /* offsets the .ob-intro gap to sit snug under the button */
+  padding: 4px 8px;
+  background: transparent;
+  border: none;
+  color: var(--color-primary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.ob-back-to-login:hover {
+  color: var(--color-primary-hover);
 }
 
 /* ── Choose your companion ── */
