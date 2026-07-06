@@ -103,6 +103,18 @@ option meaningful. The welcome screen covers the wait: its tap is disabled (show
 "preparing" label) until the summarization promise resolves — mirroring the existing
 resting-screen behavior.
 
+### Logout summarization
+
+Signing out is a fourth session-exit path the original design overlooked. Unlike a
+tab close, `logout()` clears **both** the auth cookie and the durable session state
+(`clearSessionState`), so the cold-start catch-up can no longer recover the session —
+it must be summarized inline instead. `handleLogout` fires `/session/end` for the
+active session **before** calling `logout()` (the endpoint is auth-protected, so it
+must run while the cookie is still valid), showing a brief "Saving your conversation…"
+overlay meanwhile, then logs out. Best-effort and capped by `LOGOUT_SUMMARIZE_CAP_MS`
+so a slow or failed summarize never traps the user; the request is already sent, so
+the server still completes the summary in the background.
+
 ### Brand-new user (unchanged)
 
 A first-time visitor (no history, no summary, no active session) does **not** see the

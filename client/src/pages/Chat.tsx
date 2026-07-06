@@ -72,6 +72,11 @@ const INACTIVITY_LIMIT_MS = 60 * 60 * 1000; // 1 hour
 // apart on reopen.
 const ACTIVE_KEY = 'sessionActive';     // an active conversation is in progress
 const LAST_ACTIVE_KEY = 'lastActiveAt'; // timestamp (ms) of the last user activity
+
+// Cap how long "Sign out" waits on the session summary before proceeding, so a
+// slow/hung summarize never traps the user on the "Saving…" screen. The request
+// is already sent, so the server still finishes the summary in the background.
+const LOGOUT_SUMMARIZE_CAP_MS = 12_000;
 // sessionStorage flag: survives a refresh but not a tab close / force-quit, so its
 // absence at load distinguishes a cold start from a same-process refresh.
 const TAB_ALIVE_KEY = 'tabAlive';
@@ -107,6 +112,7 @@ sessionStorage.setItem(TAB_ALIVE_KEY, '1');
 
 export default function Chat() {
   const { user, logout } = useAuth();
+  const [signingOut, setSigningOut] = useState(false);
   const navigate = useNavigate();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -537,8 +543,36 @@ export default function Chat() {
   };
 
   const handleLogout = async (): Promise<void> => {
-    await logout();
-    navigate('/login');
+    // If a conversation is in progress, summarize it BEFORE logout clears the
+    // auth cookie. Otherwise it's never summarized: the menu's "continue last
+    // conversation" is unavailable and the agent re-greets as a first-timer next
+    // time (isFirstSession = !latestSummary). /session/end is auth-protected, so
+    // it must run before logout(). Best-effort and capped so a slow/failed
+    // summarize never strands the user on the "Saving…" overlay.
+    const activeId = localStorage.getItem(ACTIVE_KEY) ? localStorage.getItem('sessionId') : null;
+    if (activeId) {
+      setSigningOut(true);
+      const summarize = fetch('/api/session/end', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: activeId, timeZone: getTimeZone() }),
+        credentials: 'include',
+      })
+        .then(() => {})
+        .catch(() => {});
+      await Promise.race([
+        summarize,
+        new Promise<void>(resolve => setTimeout(resolve, LOGOUT_SUMMARIZE_CAP_MS)),
+      ]);
+    }
+    try {
+      await logout();
+      navigate('/login');
+    } catch {
+      // Logout request failed (e.g. server down); the summary is already saved.
+      // Release the overlay so the user isn't stuck, and stay on the chat.
+      setSigningOut(false);
+    }
   };
 
   // Hold back the chat shell until init has decided what to show (it flips
@@ -550,6 +584,15 @@ export default function Chat() {
 
   return (
     <div className="chat-layout">
+
+      {signingOut && (
+        <div className="sleep-overlay" role="status" aria-live="polite" aria-label="Saving your conversation">
+          <div className="sleep-content">
+            <img src={companionAvatar(avatarId, 'curious')} alt="Companion" className="sleep-avatar" />
+            <p className="sleep-label">Saving your conversation…</p>
+          </div>
+        </div>
+      )}
 
       {sessionState === 'sleeping' && (
         <div
