@@ -10,6 +10,13 @@ import sessionRoutes from './routes/session';
 
 const app = express();
 
+// The app runs behind a reverse proxy (nginx / GCP) in prod that terminates TLS,
+// so the real client IP arrives in X-Forwarded-For. Trust one proxy hop so
+// express-rate-limit keys on the actual client IP rather than the proxy's.
+// Verify the hop count on deploy (SSH + `req.ip`, or express-rate-limit's
+// startup warning) — too high a value lets clients spoof their IP.
+app.set('trust proxy', 1);
+
 app.use(cors({
   origin: process.env.CLIENT_URL ?? 'http://localhost:5173',
   credentials: true,
