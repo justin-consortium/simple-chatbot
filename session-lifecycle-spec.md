@@ -113,7 +113,8 @@ active session **before** calling `logout()` (the endpoint is auth-protected, so
 must run while the cookie is still valid), showing a brief "Saving your conversation…"
 overlay meanwhile, then logs out. Best-effort and capped by `LOGOUT_SUMMARIZE_CAP_MS`
 so a slow or failed summarize never traps the user; the request is already sent, so
-the server still completes the summary in the background.
+the server still completes the summary in the background. The overlay is also floored
+by `LOGOUT_SUMMARIZE_MIN_MS` so a fast summary doesn't flash by and read as a glitch.
 
 ### Brand-new user (unchanged)
 

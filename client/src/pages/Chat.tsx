@@ -77,6 +77,9 @@ const LAST_ACTIVE_KEY = 'lastActiveAt'; // timestamp (ms) of the last user activ
 // slow/hung summarize never traps the user on the "Saving…" screen. The request
 // is already sent, so the server still finishes the summary in the background.
 const LOGOUT_SUMMARIZE_CAP_MS = 12_000;
+// Keep the "Saving…" overlay up for at least this long so a fast summary doesn't
+// flash by and read as a glitch.
+const LOGOUT_SUMMARIZE_MIN_MS = 1500;
 // sessionStorage flag: survives a refresh but not a tab close / force-quit, so its
 // absence at load distinguishes a cold start from a same-process refresh.
 const TAB_ALIVE_KEY = 'tabAlive';
@@ -560,9 +563,14 @@ export default function Chat() {
       })
         .then(() => {})
         .catch(() => {});
-      await Promise.race([
-        summarize,
-        new Promise<void>(resolve => setTimeout(resolve, LOGOUT_SUMMARIZE_CAP_MS)),
+      // Proceed once the summary is done (or capped), but hold the overlay for a
+      // minimum beat so a fast summary doesn't flash by and look like a glitch.
+      await Promise.all([
+        Promise.race([
+          summarize,
+          new Promise<void>(resolve => setTimeout(resolve, LOGOUT_SUMMARIZE_CAP_MS)),
+        ]),
+        new Promise<void>(resolve => setTimeout(resolve, LOGOUT_SUMMARIZE_MIN_MS)),
       ]);
     }
     try {
