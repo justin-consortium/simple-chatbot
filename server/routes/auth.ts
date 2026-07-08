@@ -52,6 +52,14 @@ const loginLimiter = rateLimit({
   },
 });
 
+// Shown on a failed login. Includes the study-team contact so a participant who
+// has lost their credentials knows how to recover them. The leading line stays
+// generic (doesn't reveal whether the username or the code was wrong).
+const INVALID_LOGIN_MESSAGE =
+  'Invalid username or access code.\n' +
+  'If you have forgotten your username or access code, contact the study team ' +
+  'at 734-764-0644 or PMR-CODALab@med.umich.edu.';
+
 router.post('/login', loginLimiter, async (req: Request, res: Response): Promise<void> => {
   const { username, password } = req.body as { username?: string; password?: string };
 
@@ -69,7 +77,7 @@ router.post('/login', loginLimiter, async (req: Request, res: Response): Promise
 
     if (!user) {
       await bcrypt.compare(code, DUMMY_HASH); // equalize timing; result ignored
-      res.status(401).json({ error: 'Invalid username or access code' });
+      res.status(401).json({ error: INVALID_LOGIN_MESSAGE });
       return;
     }
 
@@ -82,7 +90,7 @@ router.post('/login', loginLimiter, async (req: Request, res: Response): Promise
       (await bcrypt.compare(code, user.passwordHash)) ||
       (code !== code.toUpperCase() && (await bcrypt.compare(code.toUpperCase(), user.passwordHash)));
     if (!valid) {
-      res.status(401).json({ error: 'Invalid username or access code' });
+      res.status(401).json({ error: INVALID_LOGIN_MESSAGE });
       return;
     }
 

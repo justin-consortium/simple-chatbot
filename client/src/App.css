@@ -291,6 +291,7 @@ body {
   font-size: var(--text-sm);
   margin-bottom: var(--space-4);
   border: 1px solid #FECACA;
+  white-space: pre-line; /* render \n in server error messages as line breaks */
 }
 
 .auth-switch {
