@@ -108,7 +108,7 @@ function isIdle(): boolean {
 // can't set the flag on its first pass and make the second pass look like a
 // refresh. sessionStorage is empty on a fresh tab or force-quit reopen but
 // survives an in-tab refresh.
-const CRISIS_MESSAGE = "That sounds like you're carrying something really heavy right now. I don't want to just skip past what you said, and I want to take it seriously. If you need help, please call or text 988 (Suicide and Crisis Lifeline), or text HOME to 741741 (Crisis Text Line) — both are available anytime, day or night. For an immediate emergency, please call 911. You don't have to carry this alone, and you don't have to have it all figured out to reach out.";
+const CRISIS_MESSAGE = "I care about your safety, but I’m not equipped to provide the support you may need in this moment. I don't want to just skip past what you said, and I want to take it seriously. If you need help, please call or text 988 (Suicide and Crisis Lifeline), or text HOME to 741741 (Crisis Text Line) — both are available anytime, day or night. For an immediate emergency, please call 911. You don't have to handle this alone, and you don't have to have it all figured out to reach out for help.";
 
 const COLD_START = !sessionStorage.getItem(TAB_ALIVE_KEY);
 sessionStorage.setItem(TAB_ALIVE_KEY, '1');

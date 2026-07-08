@@ -31,7 +31,7 @@ const loginRateKey = (req: Request): string =>
 // login-precreated-accounts-spec.md §8-9.
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  limit: 10, // failed attempts per account, per IP, per window
+  limit: 5, // failed attempts per account, per IP, per window (locks on the 6th)
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: loginRateKey,

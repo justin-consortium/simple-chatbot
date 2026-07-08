@@ -209,6 +209,8 @@ body {
 
 .login-page .field-hint,
 .auth-container .field-hint,
+.login-page .form-hint,
+.auth-container .form-hint,
 .login-page .hint,
 .auth-container .hint {
   color: var(--auth-ink-soft);
@@ -330,26 +332,6 @@ body {
   color: var(--auth-ink-soft);
 }
 
-.login-note-contact {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  margin-top: var(--space-3);
-  font-size: var(--text-sm);
-  color: var(--auth-ink);
-}
-
-.login-note-contact a {
-  color: var(--color-primary);
-  font-weight: 500;
-  text-decoration: none;
-  word-break: break-all;
-}
-
-.login-note-contact a:hover {
-  text-decoration: underline;
-}
-
 /* Keep the live countdown (e.g. "14 minutes 38 seconds") from breaking across
    lines mid-phrase, which reads confusingly as it ticks down. */
 .countdown-time {
@@ -366,6 +348,12 @@ body {
   font-size: var(--text-xs);
   color: var(--color-text-soft);
   margin-top: var(--space-1);
+}
+
+.form-hint {
+  font-size: var(--text-sm);
+  color: var(--color-text-soft);
+  margin: 0 0 var(--space-4);
 }
 
 /* ── Chat layout ── */
