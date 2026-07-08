@@ -104,6 +104,9 @@ export default function Login() {
           <div className="error-message">{error}</div>
         ) : null}
         <form onSubmit={handleSubmit}>
+          <p className="form-hint">
+            Enter the username and access code provided to you by the research team.
+          </p>
           <div className="form-group">
             <label htmlFor="login-username">Username</label>
             <input
@@ -126,7 +129,6 @@ export default function Login() {
               required
               autoComplete="current-password"
             />
-            <span className="field-hint">Enter the access code provided to you.</span>
           </div>
           <button type="submit" className="btn-primary" disabled={loading}>
             {loading ? 'Signing in…' : 'Sign In'}
@@ -136,16 +138,9 @@ export default function Login() {
 
         <aside className="login-note">
           <p className="login-note-lead">
-            Access is by invitation only. If you need an account, contact the Center
-            for Clinical Outcomes Development &amp; Application at the University of
-            Michigan.
+            Access is by invitation only. It is not open to the public at this
+            time.
           </p>
-          <div className="login-note-contact">
-            <span>📞 734-764-0644</span>
-            <span>
-              ✉️ <a href="mailto:PMR-CODALab@med.umich.edu">PMR-CODALab@med.umich.edu</a>
-            </span>
-          </div>
         </aside>
       </main>
     </div>
