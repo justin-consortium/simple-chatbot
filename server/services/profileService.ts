@@ -28,10 +28,12 @@ export interface SeededProfile {
 // caregiver who is the "child" is caring for their parent, and a "grandchild"
 // cares for their grandparent. Symmetric relations map to themselves. Each value
 // must read grammatically after "Caring for their ".
-const RELATIONSHIP_LABELS: Record<string, string> = {
+export const RELATIONSHIP_LABELS: Record<string, string> = {
   spouse_partner:  'spouse or partner',
+  parent:          'child',
   child:           'parent',
   sibling:         'sibling',
+  grandparent:     'grandchild',
   grandchild:      'grandparent',
   other_relative:  'relative',
   friend_neighbor: 'friend or neighbor',

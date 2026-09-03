@@ -42,8 +42,10 @@ const CARE_RECIPIENT_CONDITION_OPTIONS = [
 // server/services/profileService.ts) — e.g. "child" -> caring for their parent.
 const RELATIONSHIP_OPTIONS = [
   { code: 'spouse_partner',  label: 'Spouse/partner' },
+  { code: 'parent',          label: 'Parent (mother/father)' },
   { code: 'child',           label: 'Child (daughter/son)' },
   { code: 'sibling',         label: 'Sibling (brother/sister)' },
+  { code: 'grandparent',     label: 'Grandparent (grandmother/grandfather)' },
   { code: 'grandchild',      label: 'Grandchild (grandson/granddaughter)' },
   { code: 'other_relative',  label: 'Other relative (niece, nephew, cousin, in-law, etc.)' },
   { code: 'friend_neighbor', label: 'Friend/neighbor' },
