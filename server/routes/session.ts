@@ -5,6 +5,8 @@ import type { Request, Response } from 'express';
 import type { ChatCompletionMessageParam } from 'openai/resources';
 import Message from '../models/Message';
 import Summary from '../models/Summary';
+import Session from '../models/Session';
+import type { SessionEntryPoint } from '../models/Session';
 import Profile from '../models/Profile';
 import auth from '../middleware/auth';
 import { streamTokens, callOnce } from '../services/aiService';
@@ -122,15 +124,40 @@ router.post('/end', auth, async (req: Request, res: Response): Promise<void> => 
 // POST /api/session/start
 // Generates and streams an opening message from the agent.
 router.post('/start', auth, async (req: Request, res: Response): Promise<void> => {
-  const { mode, sessionId, continuedSummaryId, timeZone } = req.body as {
+  const { mode, sessionId, continuedSummaryId, timeZone, entryPoint, menuHadContinue } = req.body as {
     mode?: string;
     sessionId?: string;
     continuedSummaryId?: string;
     timeZone?: string;
+    entryPoint?: SessionEntryPoint;
+    menuHadContinue?: boolean;
   };
   if (!sessionId) {
     res.status(400).json({ error: 'sessionId required' });
     return;
+  }
+
+  // Record which menu option started this session, before any model call, so a
+  // session the caregiver abandons after the opener is still counted. Upsert
+  // with $setOnInsert: a retried start keeps the choice first recorded for this
+  // sessionId. Best-effort — logging must never keep a session from opening.
+  try {
+    await Session.updateOne(
+      { userId: req.user!.id, sessionId },
+      {
+        $setOnInsert: {
+          userId: req.user!.id,
+          sessionId,
+          mode: mode ?? 'free',
+          entryPoint: entryPoint === 'menu' ? 'menu' : 'auto',
+          menuHadContinue: menuHadContinue === true,
+          ...(continuedSummaryId ? { continuedSummaryId } : {}),
+        },
+      },
+      { upsert: true }
+    );
+  } catch (err) {
+    console.error('[session/start] mode log failed:', err);
   }
 
   try {
