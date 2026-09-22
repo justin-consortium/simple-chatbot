@@ -170,7 +170,16 @@ export default function Chat() {
   }, [messages, sessionId]);
 
   // Streams the agent's opening message for a new session.
-  const startSession = async (mode: string, sid: string, continuedId?: string | null) => {
+  // `entry` records how this session was started: 'menu' when the caregiver
+  // picked an option, 'auto' for a brand-new visitor's first session, which
+  // begins in 'free' without the menu ever being shown. Without it the two are
+  // indistinguishable in the logs.
+  const startSession = async (
+    mode: string,
+    sid: string,
+    continuedId?: string | null,
+    entry: 'menu' | 'auto' = 'menu'
+  ) => {
     localStorage.setItem(ACTIVE_KEY, '1');
     markActive();
     const openerMsg: ChatMessage = { _id: 'opener', role: 'assistant', content: '', streaming: true, sessionId: sid };
@@ -192,7 +201,17 @@ export default function Chat() {
       const response = await fetch('/api/session/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode, sessionId: sid, continuedSummaryId: continuedId ?? undefined, timeZone: getTimeZone() }),
+        body: JSON.stringify({
+          mode,
+          sessionId: sid,
+          continuedSummaryId: continuedId ?? undefined,
+          timeZone: getTimeZone(),
+          entryPoint: entry,
+          // Whether the "continue" option was available to pick — the menu is 4
+          // or 5 options depending on this, so it's the denominator when
+          // reading the selection counts. Never true for an 'auto' start.
+          menuHadContinue: entry === 'menu' && hasPriorSummary,
+        }),
         credentials: 'include',
       });
 
@@ -303,7 +322,7 @@ export default function Chat() {
         // Brand-new visitor with nothing to return to: begin the first session
         // directly (the agent streams its first-time opener — no welcome screen).
         if (!returning) {
-          void startSession('free', sessionId);
+          void startSession('free', sessionId, null, 'auto');
           return;
         }
         // Returning user reopening the app. If a conversation was still open when
@@ -339,7 +358,7 @@ export default function Chat() {
       // No active session and not between sessions: first-ever start if truly
       // empty, otherwise fall back to the menu rather than a silent new session.
       if (!returning) {
-        void startSession('free', sessionId);
+        void startSession('free', sessionId, null, 'auto');
       } else {
         setSessionState('menu');
       }
@@ -432,7 +451,7 @@ export default function Chat() {
     if (pinned) localStorage.setItem('continuedSummaryId', pinned);
     else localStorage.removeItem('continuedSummaryId');
 
-    void startSession(mode, newId, pinned);
+    void startSession(mode, newId, pinned, 'menu');
   };
 
   const handleSkipMenu = () => {
@@ -445,7 +464,7 @@ export default function Chat() {
     setSessionState('active');
     setContinuedSummaryId(null);
     localStorage.removeItem('continuedSummaryId');
-    void startSession('free', newId, null);
+    void startSession('free', newId, null, 'menu');
   };
 
   const handleSend = async (): Promise<void> => {
